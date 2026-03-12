@@ -1,12 +1,12 @@
 # Biblioteca
 
-Aplicacao web para gestao de livros, autores e editoras, desenvolvida com Laravel + Livewire + Vite.
+Aplicação web para gestão de livros, autores e editoras, desenvolvida com Laravel + Livewire + Vite.
 
 ## Tecnologias
 
 - PHP / Laravel
 - Livewire
-- MySQL (ou outro SGBD compativel com Laravel)
+- SQLite (configuracao atual)
 - Node.js / npm
 - Vite + Tailwind CSS
 
@@ -16,15 +16,15 @@ Aplicacao web para gestao de livros, autores e editoras, desenvolvida com Larave
 - Composer
 - Node.js 18+
 - npm
-- Base de dados configurada no ficheiro .env
+- SQLite configurado no ficheiro .env
 
-## Instalacao
+## Instalação
 
-1. Clonar o repositorio.
-2. Instalar dependencias PHP e JS.
+1. Clonar o repositório.
+2. Instalar dependências PHP e JS.
 3. Configurar ambiente.
-4. Gerar chave da aplicacao.
-5. Executar migracoes e seeders.
+4. Gerar chave da aplicação.
+5. Executar migrações e seeders.
 
 ### Comandos (Windows - PowerShell)
 
@@ -62,13 +62,13 @@ Terminal 2:
 npm run dev
 ```
 
-### Build de producao
+### Build de produção
 
 ```bash
 npm run build
 ```
 
-Nota: os ficheiros gerados em public/build nao devem ser versionados no Git (ja estao no .gitignore).
+Nota: os ficheiros gerados em public/build não devem ser versionados no Git (já estão no .gitignore).
 
 ## Testes
 
@@ -76,7 +76,7 @@ Nota: os ficheiros gerados em public/build nao devem ser versionados no Git (ja 
 php artisan test
 ```
 
-## Fluxo para nova maquina
+## Fluxo para nova máquina
 
 Depois de clonar o projeto:
 
