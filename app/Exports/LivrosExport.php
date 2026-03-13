@@ -26,6 +26,7 @@ class LivrosExport extends StringValueBinder implements FromCollection, ShouldAu
             $livro->id,
             (string) $livro->isbn,
             $livro->nome,
+            $livro->autores->pluck('nome')->implode(', '),
             optional($livro->editora)->nome,
             $livro->bibliografia,
             $livro->imagem_capa,
@@ -49,7 +50,7 @@ class LivrosExport extends StringValueBinder implements FromCollection, ShouldAu
     public function columnFormats(): array
     {
         return [
-            'G' => NumberFormat::FORMAT_NUMBER_00,
+            'H' => NumberFormat::FORMAT_NUMBER_00,
         ];
     }
 
@@ -59,6 +60,7 @@ class LivrosExport extends StringValueBinder implements FromCollection, ShouldAu
             'ID',
             'ISBN',
             'Nome',
+            'Autores',
             'Editora',
             'Bibliografia',
             'Capa',
