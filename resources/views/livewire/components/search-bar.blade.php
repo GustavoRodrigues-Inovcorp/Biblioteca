@@ -1,5 +1,7 @@
+
 @props([
     'placeholder' => 'Pesquisar...',
+    'model' => 'search',
 ])
 
 <div class="flex gap-3">
@@ -10,7 +12,7 @@
 
         <x-input
             type="text"
-            wire:model.live.debounce.400ms="search"
+            wire:model.live.debounce.400ms="{{ $model }}"
             placeholder="{{ $placeholder }}"
             class="w-full rounded-xl border py-2 pl-10 pr-3 text-sm"
         />

@@ -4,13 +4,18 @@ namespace App\Livewire;
 
 use App\Exports\LivrosExport;
 use App\Models\Livro;
-use Maatwebsite\Excel\Facades\Excel;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LivrosTable extends Component
 {
     use WithPagination;
+
+    public bool $isAdmin = false;
+    public bool $selectPage = false;
+    /** @var array<int> */
+    public array $selectedLivros = [];
 
     // Estado dos filtros de pesquisa e intervalo de preco.
     public string $search = '';
@@ -32,11 +37,18 @@ class LivrosTable extends Component
         'sortDirection' => ['except' => 'normal'],
     ];
 
+    public function mount(bool $isAdmin = false): void
+    {
+        $this->isAdmin = $isAdmin;
+    }
+
     public function updating($name)
     {
         // Sempre que um filtro principal muda, volta para a pagina 1.
         if (in_array($name, ['search', 'precoMin', 'precoMax'], true)) {
             $this->resetPage();
+            $this->selectedLivros = [];
+            $this->selectPage = false;
         }
     }
 
@@ -45,7 +57,6 @@ class LivrosTable extends Component
      */
     public function sortBy(): void
     {
-        // Ciclo: asc -> desc -> normal -> asc
         if ($this->sortDirection === 'asc') {
             $this->sortDirection = 'desc';
         } elseif ($this->sortDirection === 'desc') {
@@ -59,12 +70,12 @@ class LivrosTable extends Component
 
     public function setSortPreset(string $preset): void
     {
-        // Presets usados pela sidebar para ordenar título.
         $this->sortDirection = match ($preset) {
-            'az'     => 'asc',
-            'za'     => 'desc',
-            default  => 'normal',
+            'az' => 'asc',
+            'za' => 'desc',
+            default => 'normal',
         };
+
         $this->resetPage();
     }
 
@@ -74,19 +85,18 @@ class LivrosTable extends Component
         $precoMin = $this->normalizePrice($this->precoMin);
         $precoMax = $this->normalizePrice($this->precoMax);
 
-        // Query base com relacionamentos para evitar N+1 na view.
         $query = Livro::query()
             ->with(['editora', 'autores'])
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('isbn', 'like', "%{$search}%")
                         ->orWhere('nome', 'like', "%{$search}%")
-                        ->orWhereHas('editora', fn($e) => $e->where('nome', 'like', "%{$search}%"))
-                        ->orWhereHas('autores', fn($a) => $a->where('nome', 'like', "%{$search}%"));
+                        ->orWhereHas('editora', fn ($e) => $e->where('nome', 'like', "%{$search}%"))
+                        ->orWhereHas('autores', fn ($a) => $a->where('nome', 'like', "%{$search}%"));
                 });
             })
-            ->when($precoMin !== null, fn($q) => $q->where('preco', '>=', $precoMin))
-            ->when($precoMax !== null, fn($q) => $q->where('preco', '<=', $precoMax));
+            ->when(!$this->isAdmin && $precoMin !== null, fn ($q) => $q->where('preco', '>=', $precoMin))
+            ->when(!$this->isAdmin && $precoMax !== null, fn ($q) => $q->where('preco', '<=', $precoMax));
 
         if ($this->sortDirection !== 'normal') {
             $query->orderBy('nome', $this->sortDirection);
@@ -99,7 +109,6 @@ class LivrosTable extends Component
 
     protected function normalizePrice(string $value): ?float
     {
-        // Aceita virgula ou ponto e devolve null se valor nao for numerico.
         $normalized = str_replace(',', '.', trim($value));
 
         if ($normalized === '' || !is_numeric($normalized)) {
@@ -122,12 +131,94 @@ class LivrosTable extends Component
         );
     }
 
+    protected function getCurrentPageIds(): array
+    {
+        return $this->getLivrosQuery()
+            ->paginate(20)
+            ->getCollection()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    public function updatedSelectPage(bool $value): void
+    {
+        if (! $this->isAdmin) {
+            return;
+        }
+
+        $pageIds = $this->getCurrentPageIds();
+
+        if ($pageIds === []) {
+            $this->selectPage = false;
+
+            return;
+        }
+
+        if (! $value) {
+            $this->selectedLivros = array_values(array_diff(array_map('intval', $this->selectedLivros), $pageIds));
+
+            return;
+        }
+
+        $this->selectedLivros = array_values(array_unique([
+            ...array_map('intval', $this->selectedLivros),
+            ...$pageIds,
+        ]));
+    }
+
+    public function updatedSelectedLivros(): void
+    {
+        $this->selectedLivros = array_values(array_unique(array_map('intval', $this->selectedLivros)));
+
+        if (! $this->isAdmin) {
+            return;
+        }
+
+        $pageIds = $this->getCurrentPageIds();
+        $this->selectPage = $pageIds !== [] && count(array_diff($pageIds, $this->selectedLivros)) === 0;
+    }
+
+    public function eliminarSelecionados(): void
+    {
+        if (! $this->isAdmin || $this->selectedLivros === []) {
+            return;
+        }
+
+        $ids = array_map('intval', $this->selectedLivros);
+
+        Livro::query()
+            ->whereIn('id', $ids)
+            ->get()
+            ->each(function (Livro $livro): void {
+                $livro->autores()->detach();
+                $livro->delete();
+            });
+
+        $this->selectedLivros = [];
+        $this->selectPage = false;
+    }
 
     public function render()
     {
-        // Paginacao final da listagem.
         $livros = $this->getLivrosQuery()->paginate(20);
+        $pageIds = $livros->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-        return view('livewire.livros-table', ['livros' => $livros]);
+        if ($this->isAdmin) {
+            $this->selectPage = $pageIds !== [] && count(array_diff($pageIds, $this->selectedLivros)) === 0;
+        }
+
+        // Calcular o número de livros requisitados em simultâneo pelo utilizador autenticado
+        $livrosRequisitados = 0;
+        if (auth()->check()) {
+            $livrosRequisitados = auth()->user()->requisicoes()->whereNull('devolvido_em')->count();
+        }
+
+        return view('livewire.livros-table', [
+            'livros' => $livros,
+            'pageIds' => $pageIds,
+            'forRequisicao' => false,
+            'livrosRequisitados' => $livrosRequisitados,
+        ]);
     }
 }
