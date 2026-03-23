@@ -9,41 +9,70 @@
     <form
         method="POST"
         action="{{ route('admin.livros.destroy', $livro) }}"
-        onsubmit="event.preventDefault(); showDeletePopup(this);"
+        onsubmit="event.preventDefault(); event.stopPropagation(); showDeletePopup(this, 'delete-popup-{{ $livro->id }}');"
     >
         @csrf
         @method('DELETE')
         <button
             type="submit"
+            onclick="event.stopPropagation();"
             class="inline-flex items-center rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
         >
             Eliminar
         </button>
     </form>
     <x-popup
-        id="delete-popup"
+        id="delete-popup-{{ $livro->id }}"
         color="red"
         title="Confirmação"
         :showCancel="true"
         okText="Confirmar"
         cancelText="Cancelar"
         message="Tens a certeza que queres eliminar este livro?"
-        :onOk="'confirmDeletePopup()'"
-        :onCancel="'closeDeletePopup()'"
     />
     <script>
-        let deleteForm = null;
-        function showDeletePopup(form) {
-            deleteForm = form;
-            document.getElementById('delete-popup').style.display = 'flex';
+        window.deleteForms = window.deleteForms || {};
+        function showDeletePopup(form, popupId) {
+            window.deleteForms[popupId] = form;
+            document.getElementById(popupId).style.display = 'flex';
         }
-        function closeDeletePopup() {
-            document.getElementById('delete-popup').style.display = 'none';
-            deleteForm = null;
+        function closeDeletePopup(popupId) {
+            document.getElementById(popupId).style.display = 'none';
+            window.deleteForms[popupId] = null;
         }
-        function confirmDeletePopup() {
-            document.getElementById('delete-popup').style.display = 'none';
-            if (deleteForm) deleteForm.submit();
+        function confirmDeletePopup(popupId) {
+            document.getElementById(popupId).style.display = 'none';
+            if (window.deleteForms[popupId]) {
+                window.deleteForms[popupId].onsubmit = null;
+                window.deleteForms[popupId].submit();
+            }
         }
+        // Garantir que os botões do popup funcionam sempre
+        document.addEventListener('DOMContentLoaded', function() {
+            var popupId = 'delete-popup-{{ $livro->id }}';
+            var popup = document.getElementById(popupId);
+            if (popup) {
+                var buttons = popup.querySelectorAll('button');
+                if (buttons.length > 0) {
+                    // Confirmar
+                    buttons[0].onclick = function(e) {
+                        e.stopPropagation();
+                        confirmDeletePopup(popupId);
+                    };
+                    // Cancelar
+                    if (buttons.length > 1) {
+                        buttons[1].onclick = function(e) {
+                            e.stopPropagation();
+                            closeDeletePopup(popupId);
+                        };
+                    }
+                }
+                // Overlay
+                var overlay = popup.querySelector('.absolute.inset-0');
+                if (overlay) {
+                    overlay.onclick = function(e) { e.stopPropagation(); };
+                }
+            }
+        });
     </script>
 </div>

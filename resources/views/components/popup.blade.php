@@ -46,8 +46,8 @@
     $c = $colorMap[$color] ?? $colorMap['green'];
 @endphp
 
-<div id="{{ $id }}" class="fixed top-0 left-0 w-full h-full flex items-center justify-center z-50" style="display:none;">
-    <div class="absolute inset-0 bg-black bg-opacity-60"></div>
+<div id="{{ $id }}" class="fixed top-0 left-0 w-full h-full flex items-center justify-center z-50" style="display:none;" onclick="event.stopPropagation();">
+    <div class="absolute inset-0 bg-black bg-opacity-60" onclick="event.stopPropagation();"></div>
     <div class="relative bg-white rounded-lg shadow-xl border {{ $c['border'] }} p-6 max-w-md w-full animate-fade-in">
         <div class="flex items-center mb-4">
             @if ($icon)

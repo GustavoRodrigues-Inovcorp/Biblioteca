@@ -109,7 +109,7 @@
                     @forelse ($livros as $livro)
                         <tr
                             class="transition hover:bg-slate-50 cursor-pointer"
-                            onclick="window.location='{{ $isAdmin ? route('admin.livros.show', $livro->id) : route('livros.show', $livro->id) }}'"
+                            onclick="if(!['BUTTON','A','INPUT','LABEL','SELECT','TEXTAREA'].includes(event.target.tagName)){window.location='{{ $isAdmin ? route('admin.livros.show', $livro->id) : route('livros.show', $livro->id) }}'}"
                         >
                             @if ($isAdmin && ! $forRequisicao)
                                 <td class="align-middle px-4 py-3">

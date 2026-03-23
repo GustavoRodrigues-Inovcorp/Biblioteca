@@ -82,10 +82,16 @@ class RequisicaoController extends Controller
         ]);
 
         // Enviar email para todos os admins e para o cidadão
-        \Mail::to($user->email)->send(new \App\Mail\NovaRequisicaoMail($requisicao));
-        $adminEmail = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->value('email');
-        if ($adminEmail) {
-            \Mail::to($adminEmail)->send(new \App\Mail\NovaRequisicaoMail($requisicao));
+        // Só envia para o utilizador se estiver em ambiente de desenvolvimento/teste
+        if (app()->environment(['local', 'testing'])) {
+            \Mail::to($user->email)->send(new \App\Mail\NovaRequisicaoMail($requisicao));
+        } else {
+            // Em produção, envia para ambos
+            \Mail::to($user->email)->send(new \App\Mail\NovaRequisicaoMail($requisicao));
+            $adminEmail = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->value('email');
+            if ($adminEmail) {
+                \Mail::to($adminEmail)->send(new \App\Mail\NovaRequisicaoMail($requisicao));
+            }
         }
 
         if ($user->isAdmin()) {
