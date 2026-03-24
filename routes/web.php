@@ -17,21 +17,6 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-Route::middleware([
-    'auth:sanctum',
-    config('jetstream.auth_session'),
-    'verified',
-])->get('/dashboard', function () {
-    $user = request()->user();
-
-    if ($user?->isAdmin()) {
-        return redirect()->route('admin.dashboard');
-    }
-
-    return redirect()->route('home');
-})->name('dashboard');
-
-
 Route::get('/livros', function () {
     return view('cidadao.livros.index');
 })->name('livros.index');
@@ -76,6 +61,15 @@ Route::middleware([
         ]);
     })->name('dashboard');
 
+    // Google Books API - Importação de livros
+    Route::get('/googlebooks', [\App\Http\Controllers\Admin\GoogleBooksController::class, 'index'])->name('googlebooks.index');
+    Route::post('/googlebooks/search', [\App\Http\Controllers\Admin\GoogleBooksController::class, 'search'])->name('googlebooks.search');
+    Route::post('/googlebooks/import', [\App\Http\Controllers\Admin\GoogleBooksController::class, 'import'])->name('googlebooks.import');
+    // Permitir GET em /googlebooks/search
+    Route::get('/googlebooks/search', function () {
+        return redirect()->route('admin.googlebooks.index');
+    })->name('googlebooks.search.get');
+
     Route::get('/livros', [AdminLivroController::class, 'index'])->name('livros');
     Route::get('/livros/criar', [AdminLivroController::class, 'create'])->name('livros.create');
     Route::post('/livros', [AdminLivroController::class, 'store'])->name('livros.store');
@@ -92,7 +86,6 @@ Route::middleware([
         return view('admin.perfil');
     })->name('perfil');
 
-    // Corrigir rota nomeada esperada pelo painel admin
     Route::get('/requisicoes', function () {
         return view('admin.requisicoes.index');
     })->name('requisicoes');

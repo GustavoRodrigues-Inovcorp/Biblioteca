@@ -28,11 +28,6 @@
                         <x-nav-link href="{{ route('requisicoes.index') }}" :active="request()->routeIs('requisicoes.index')">
                             {{ __('Requisições') }}
                         </x-nav-link>
-                        @if (Auth::user()->isAdmin())
-                            <x-nav-link href="{{ route('admin.dashboard') }}" :active="request()->routeIs('admin.*')">
-                                {{ __('Painel Admin') }}
-                            </x-nav-link>
-                        @endif
                     @endauth
                 </div>
             </div>
@@ -188,13 +183,6 @@
             <x-responsive-nav-link href="{{ route('editoras.index') }}" :active="request()->routeIs('editoras.index')">
                 {{ __('Editoras') }}
             </x-responsive-nav-link>
-            @auth
-                @if (Auth::user()->isAdmin())
-                    <x-responsive-nav-link href="{{ route('admin.dashboard') }}" :active="request()->routeIs('admin.*')">
-                        {{ __('Painel Admin') }}
-                    </x-responsive-nav-link>
-                @endif
-            @endauth
 
             @guest
                 @if (Route::has('login'))
