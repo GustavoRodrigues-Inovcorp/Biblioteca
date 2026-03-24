@@ -29,6 +29,8 @@
         okText="Confirmar"
         cancelText="Cancelar"
         message="Tens a certeza que queres eliminar este livro?"
+        messageClass="text-xs"
+
     />
     <script>
         window.deleteForms = window.deleteForms || {};

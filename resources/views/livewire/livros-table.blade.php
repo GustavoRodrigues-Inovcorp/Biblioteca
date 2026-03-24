@@ -153,7 +153,7 @@
                                 <td class="whitespace-nowrap px-4 py-3">{{ $livro->editora?->nome ?? '-' }}</td>
                             @endif
                             @if ($mostrarBibliografia)
-                                <td class="max-w-sm text-gray-700 px-4 py-3">
+                                <td class="max-w-sm text-gray-700 text-xs px-4 py-3">
                                     {{ $livro->bibliografia ? \Illuminate\Support\Str::limit($livro->bibliografia, 90) : '-' }}
                                 </td>
                             @endif

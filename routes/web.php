@@ -33,18 +33,18 @@ Route::middleware([
 
 
 Route::get('/livros', function () {
-    return view('livros');
-})->name('livros');
+    return view('cidadao.livros.index');
+})->name('livros.index');
 
 Route::get('/livros/{livro}', [\App\Http\Controllers\LivroPublicoController::class, 'show'])->name('livros.show');
 
 Route::get('/autores', function () {
-    return view('autores');
-})->name('autores');
+    return view('cidadao.autores.index');
+})->name('autores.index');
 
 Route::get('/editoras', function () {
-    return view('editoras');
-})->name('editoras');
+    return view('cidadao.editoras.index');
+})->name('editoras.index');
 
 Route::middleware([
     'auth:sanctum',
@@ -92,8 +92,9 @@ Route::middleware([
         return view('admin.perfil');
     })->name('perfil');
 
+    // Corrigir rota nomeada esperada pelo painel admin
     Route::get('/requisicoes', function () {
-        return view('admin.requisicoes');
+        return view('admin.requisicoes.index');
     })->name('requisicoes');
 });
 

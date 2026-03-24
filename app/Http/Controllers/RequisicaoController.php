@@ -13,23 +13,10 @@ class RequisicaoController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
-
-        $livrosDisponiveis = Livro::query()
-            ->with('editora')
-            ->leftJoin('requisicoes', function ($join) {
-                $join->on('livros.id', '=', 'requisicoes.livro_id')
-                    ->whereNull('requisicoes.devolvido_em');
-            })
-            ->whereNull('requisicoes.id')
-            ->distinct()
-            ->select('livros.*')
-            ->orderBy('livros.nome')
-            ->get();
-
-        return view('requisicoes.index', [
-            'livrosDisponiveis' => $livrosDisponiveis,
-            'isAdmin' => $user->isAdmin(),
-        ]);
+        if ($user->isAdmin()) {
+            return view('admin.requisicoes.index');
+        }
+        return view('cidadao.requisicoes.index');
     }
 
     public function store(Request $request): RedirectResponse
@@ -100,7 +87,7 @@ class RequisicaoController extends Controller
                 ->with('status', 'Requisição criada com sucesso.');
         } else {
             return redirect()
-                ->route('livros')
+                ->route('livros.index')
                 ->with('status', 'Requisição criada com sucesso.');
         }
     }

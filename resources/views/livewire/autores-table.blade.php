@@ -97,7 +97,7 @@
                                 </div>
                             </td>
                             <td class="whitespace-nowrap text-right px-4 py-3">
-                                <a href="{{ route('livros', ['search' => $autor->nome, 'return_to' => route('autores', $autoresReturnQuery) . '#autor-' . $autor->id]) }}"
+                                <a href="{{ route('livros.index', ['search' => $autor->nome, 'return_to' => route('autores.index', $autoresReturnQuery) . '#autor-' . $autor->id]) }}"
                                     onclick="sessionStorage.setItem('biblioteca:return-scroll', JSON.stringify({ path: window.location.pathname + window.location.search, y: window.scrollY }))"
                                     class="inline-flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 mr-1"                                    title="Ver livros de {{ $autor->nome }}"
                                     aria-label="Ver livros de {{ $autor->nome }}">

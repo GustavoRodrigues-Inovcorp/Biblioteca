@@ -15,17 +15,17 @@
                     <x-nav-link href="{{ route('home') }}" :active="request()->routeIs('home')">
                         {{ __('Início') }}
                     </x-nav-link>
-                    <x-nav-link href="{{ route('livros') }}" :active="request()->routeIs('livros')">
+                    <x-nav-link href="{{ route('livros.index') }}" :active="request()->routeIs('livros.index')">
                         {{ __('Livros') }}
                     </x-nav-link>
-                    <x-nav-link href="{{ route('autores') }}" :active="request()->routeIs('autores')">
+                    <x-nav-link href="{{ route('autores.index') }}" :active="request()->routeIs('autores.index')">
                         {{ __('Autores') }}
                     </x-nav-link>
-                    <x-nav-link href="{{ route('editoras') }}" :active="request()->routeIs('editoras')">
+                    <x-nav-link href="{{ route('editoras.index') }}" :active="request()->routeIs('editoras.index')">
                         {{ __('Editoras') }}
                     </x-nav-link>
                     @auth
-                        <x-nav-link href="{{ route('requisicoes.index') }}" :active="request()->routeIs('requisicoes.*')">
+                        <x-nav-link href="{{ route('requisicoes.index') }}" :active="request()->routeIs('requisicoes.index')">
                             {{ __('Requisições') }}
                         </x-nav-link>
                         @if (Auth::user()->isAdmin())
@@ -179,13 +179,13 @@
             <x-responsive-nav-link href="{{ route('home') }}" :active="request()->routeIs('home')">
                 {{ __('Início') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link href="{{ route('livros') }}" :active="request()->routeIs('livros')">
+            <x-responsive-nav-link href="{{ route('livros.index') }}" :active="request()->routeIs('livros.index')">
                 {{ __('Livros') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link href="{{ route('autores') }}" :active="request()->routeIs('autores')">
+            <x-responsive-nav-link href="{{ route('autores.index') }}" :active="request()->routeIs('autores.index')">
                 {{ __('Autores') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link href="{{ route('editoras') }}" :active="request()->routeIs('editoras')">
+            <x-responsive-nav-link href="{{ route('editoras.index') }}" :active="request()->routeIs('editoras.index')">
                 {{ __('Editoras') }}
             </x-responsive-nav-link>
             @auth

@@ -18,6 +18,22 @@ Aplicação web para gestão de livros, autores e editoras, desenvolvida com Lar
 - npm
 - SQLite configurado no ficheiro .env
 
+## Funcionalidades
+
+- Gestão de livros, autores e editoras
+- Requisições de livros por utilizadores
+- Painel de administração para gerir requisições
+- Filtros avançados por estado, datas e pesquisa
+- Feedback visual de requisições ativas, entregues, etc.
+- Sistema de autenticação (admin/cidadão)
+- Notificações de ações
+
+## Utilização
+
+- Utilizador cidadão pode requisitar livros e pedir devolução
+- Admin pode aceitar, recusar e gerir todas as requisições
+- Filtros e pesquisas independentes para cada tabela
+
 ## Instalação
 
 1. Clonar o repositório.

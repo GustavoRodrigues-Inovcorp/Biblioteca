@@ -3,13 +3,227 @@
 namespace App\Livewire;
 
 use App\Models\Requisicao;
-use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class RequisicaoTable extends Component
 {
+     // Propriedades para popups e controlo de ações
+    public ?int $requisicaoParaDevolver = null;
+    public bool $mostrarPopupDevolucao = false;
+    public ?int $requisicaoParaAceitar = null;
+    public bool $mostrarPopupAceitar = false;
+    public ?int $requisicaoParaRecusar = null;
+    public bool $mostrarPopupRecusar = false;
+    /** @var array<int> */
+    public array $pedidosDevolucaoEnviados = [];
+    public $minhasRequisicoes = [];
+
+    public function aceitarRequisicao($id)
+    {
+        $this->requisicaoParaAceitar = $id;
+        $this->mostrarPopupAceitar = true;
+    }
+
+    public function confirmarAceitarRequisicao()
+    {
+        $id = $this->requisicaoParaAceitar;
+        $requisicao = Requisicao::find($id);
+        if ($requisicao) {
+            $requisicao->estado_devolucao = 'aceite';
+            $requisicao->devolvido_em = now()->toDateTimeString();
+            $requisicao->save();
+        }
+        $this->mostrarPopupAceitar = false;
+        $this->requisicaoParaAceitar = null;
+        // Recarregar histórico
+        $this->atualizarHistorico();
+        $this->dispatch('notify', message: 'Requisição aceite!');
+    }
+
+    public function recusarRequisicao($id)
+    {
+        $this->requisicaoParaRecusar = $id;
+        $this->mostrarPopupRecusar = true;
+    }
+
+    public function confirmarRecusarRequisicao()
+    {
+        $id = $this->requisicaoParaRecusar;
+        $requisicao = Requisicao::find($id);
+        if ($requisicao) {
+            $requisicao->estado_devolucao = 'recusado';
+            $requisicao->save();
+        }
+        $this->mostrarPopupRecusar = false;
+        $this->requisicaoParaRecusar = null;
+        // Recarregar histórico
+        $this->atualizarHistorico();
+        $this->dispatch('notify', message: 'Requisição recusada!');
+    }
+
+    /**
+     * Atualiza o array $historico conforme o utilizador (admin ou não)
+     */
+    public function atualizarHistorico()
+    {
+        $user = auth()->user();
+        if ($this->isAdmin) {
+            $query = Requisicao::with(['livro.editora', 'user']);
+            if ($this->adminEstado) {
+                if ($this->adminEstado === 'requisitado') {
+                    $query->whereNull('devolvido_em')->where(function($subQ) {
+                        $subQ->whereNull('estado_devolucao')->orWhere('estado_devolucao', '');
+                    });
+                } elseif ($this->adminEstado === 'pendente') {
+                    $query->where('estado_devolucao', 'pendente');
+                } elseif ($this->adminEstado === 'aceite') {
+                    $query->where('estado_devolucao', 'aceite');
+                } elseif ($this->adminEstado === 'recusado') {
+                    $query->where('estado_devolucao', 'recusado');
+                }
+            }
+            if ($this->adminDataRequisicaoInicio) {
+                $query->whereDate('requisitado_em', '>=', $this->adminDataRequisicaoInicio);
+            }
+            if ($this->adminDataRequisicaoFim) {
+                $query->whereDate('requisitado_em', '<=', $this->adminDataRequisicaoFim);
+            }
+            if ($this->adminDataPrevistaInicio) {
+                $query->whereDate('fim_previsto_em', '>=', $this->adminDataPrevistaInicio);
+            }
+            if ($this->adminDataPrevistaFim) {
+                $query->whereDate('fim_previsto_em', '<=', $this->adminDataPrevistaFim);
+            }
+            if ($this->adminDataDevolucaoInicio) {
+                $query->whereDate('devolvido_em', '>=', $this->adminDataDevolucaoInicio);
+            }
+            if ($this->adminDataDevolucaoFim) {
+                $query->whereDate('devolvido_em', '<=', $this->adminDataDevolucaoFim);
+            }
+            if ($this->search !== '') {
+                $search = $this->search;
+                $query->where(function ($sub) use ($search) {
+                    $sub->whereHas('livro', function ($livroQ) use ($search) {
+                        $livroQ->where('nome', 'like', "%{$search}%")
+                            ->orWhere('isbn', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('user', fn ($userQ) => $userQ->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
+                    ->orWhereHas('livro.editora', fn ($editoraQ) => $editoraQ->where('nome', 'like', "%{$search}%"));
+                });
+            }
+            $this->historico = $query->orderByDesc('requisitado_em')->get();
+
+            // Popular minhasRequisicoes para o admin
+            $this->minhasRequisicoes = Requisicao::with(['livro.editora'])
+                ->where('user_id', $user->id)
+                ->orderByDesc('requisitado_em')
+                ->get()
+                ->all();
+        } else {
+            $query = Requisicao::with(['livro.editora'])
+                ->where('user_id', $user->id);
+            if ($this->estado) {
+                if ($this->estado === 'requisitado') {
+                    $query->whereNull('devolvido_em')->where(function($subQ) {
+                        $subQ->whereNull('estado_devolucao')->orWhere('estado_devolucao', '');
+                    });
+                } elseif ($this->estado === 'pendente') {
+                    $query->where('estado_devolucao', 'pendente');
+                } elseif ($this->estado === 'aceite') {
+                    $query->where('estado_devolucao', 'aceite');
+                } elseif ($this->estado === 'recusado') {
+                    $query->where('estado_devolucao', 'recusado');
+                }
+            }
+            if ($this->dataRequisicaoInicio) {
+                $query->whereDate('requisitado_em', '>=', $this->dataRequisicaoInicio);
+            }
+            if ($this->dataRequisicaoFim) {
+                $query->whereDate('requisitado_em', '<=', $this->dataRequisicaoFim);
+            }
+            if ($this->dataPrevistaInicio) {
+                $query->whereDate('fim_previsto_em', '>=', $this->dataPrevistaInicio);
+            }
+            if ($this->dataPrevistaFim) {
+                $query->whereDate('fim_previsto_em', '<=', $this->dataPrevistaFim);
+            }
+            if ($this->dataDevolucaoInicio) {
+                $query->whereDate('devolvido_em', '>=', $this->dataDevolucaoInicio);
+            }
+            if ($this->dataDevolucaoFim) {
+                $query->whereDate('devolvido_em', '<=', $this->dataDevolucaoFim);
+            }
+            if ($this->search !== '') {
+                $search = $this->search;
+                $query->where(function ($sub) use ($search) {
+                    $sub->whereHas('livro', function ($livroQ) use ($search) {
+                        $livroQ->where('nome', 'like', "%{$search}%")
+                            ->orWhere('isbn', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('livro.editora', fn ($editoraQ) => $editoraQ->where('nome', 'like', "%{$search}%"));
+                });
+            }
+            $this->historico = $query->orderByDesc('requisitado_em')->get();
+        }
+    }
+
+    public function pedirDevolucao($id)
+    {
+        $this->requisicaoParaDevolver = $id;
+        $this->mostrarPopupDevolucao = true;
+    }
+
+        public function confirmarDevolucao()
+        {
+            $id = $this->requisicaoParaDevolver;
+            $requisicao = Requisicao::find($id);
+            $user = auth()->user();
+            if ($requisicao && $requisicao->devolvido_em === null) {
+                if ($user && $user->isAdmin()) {
+                    $requisicao->estado_devolucao = 'aceite';
+                    $requisicao->devolvido_em = now()->toDateTimeString();
+                    $requisicao->save();
+                    $this->dispatch('notify', message: 'Livro devolvido com sucesso!');
+                } else {
+                    if ($requisicao->pedido_devolucao_em === null) {
+                        $requisicao->pedido_devolucao_em = now()->toDateTimeString();
+                        $requisicao->estado_devolucao = 'pendente';
+                        $requisicao->save();
+                    }
+                    $this->dispatch('notify', message: 'Pedido de devolução enviado!');
+                }
+            }
+            $this->mostrarPopupDevolucao = false;
+            $this->requisicaoParaDevolver = null;
+            $this->atualizarHistorico();
+        }
+
+    // Propriedades para estatísticas/admin
+        public $adminSearch = '';
+    public $adminRequisicoes = null;
+    public $totalAdminAtivas = null;
+    public $totalAdminUltimos30Dias = null;
+    public $totalAdminEntreguesHoje = null;
+    public $adminEstado = '';
+    public $adminDataRequisicaoInicio = null;
+    public $adminDataRequisicaoFim = null;
+    public $adminDataPrevistaInicio = null;
+    public $adminDataPrevistaFim = null;
+        public $adminDataDevolucaoInicio = null;
+        public $adminDataDevolucaoFim = null;
+    public $historico = [];
+    // Filtros para cidadão
+    public $estado = '';
+    public $dataRequisicaoInicio = null;
+    public $dataRequisicaoFim = null;
+    public $dataPrevistaInicio = null;
+    public $dataPrevistaFim = null;
+    public $dataDevolucaoInicio = null;
+    public $dataDevolucaoFim = null;
+
+
     use WithPagination;
 
     public bool $isAdmin = false;
@@ -24,6 +238,7 @@ class RequisicaoTable extends Component
     {
         $this->isAdmin = $isAdmin;
         $this->userId = $userId;
+        $this->atualizarHistorico();
     }
 
     public function updating($name)
@@ -71,6 +286,164 @@ class RequisicaoTable extends Component
 
     public function render()
     {
-        return view('livewire.requisicao-table');
+        $user = auth()->user();
+
+        // Se for admin, mostrar todas as requisições (com filtros)
+        if ($this->isAdmin) {
+            // Tabela de todas as requisições (admin)
+            $query = Requisicao::with(['livro.editora', 'user']);
+            if ($this->adminEstado) {
+                if ($this->adminEstado === 'requisitado') {
+                    $query->whereNull('devolvido_em')->where(function($subQ) {
+                        $subQ->whereNull('estado_devolucao')->orWhere('estado_devolucao', '');
+                    });
+                } elseif ($this->adminEstado === 'pendente') {
+                    $query->where('estado_devolucao', 'pendente');
+                } elseif ($this->adminEstado === 'aceite') {
+                    $query->where('estado_devolucao', 'aceite');
+                } elseif ($this->adminEstado === 'recusado') {
+                    $query->where('estado_devolucao', 'recusado');
+                }
+            }
+            if ($this->adminDataRequisicaoInicio) {
+                $query->whereDate('requisitado_em', '>=', $this->adminDataRequisicaoInicio);
+            }
+            if ($this->adminDataRequisicaoFim) {
+                $query->whereDate('requisitado_em', '<=', $this->adminDataRequisicaoFim);
+            }
+            if ($this->adminDataPrevistaInicio) {
+                $query->whereDate('fim_previsto_em', '>=', $this->adminDataPrevistaInicio);
+            }
+            if ($this->adminDataPrevistaFim) {
+                $query->whereDate('fim_previsto_em', '<=', $this->adminDataPrevistaFim);
+            }
+            if ($this->adminDataDevolucaoInicio) {
+                $query->whereDate('devolvido_em', '>=', $this->adminDataDevolucaoInicio);
+            }
+            if ($this->adminDataDevolucaoFim) {
+                $query->whereDate('devolvido_em', '<=', $this->adminDataDevolucaoFim);
+            }
+            if ($this->adminSearch !== '') {
+                $search = $this->adminSearch;
+                $query->where(function ($sub) use ($search) {
+                    $sub->whereHas('livro', function ($livroQ) use ($search) {
+                        $livroQ->where('nome', 'like', "%{$search}%")
+                            ->orWhere('isbn', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('user', fn ($userQ) => $userQ->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
+                    ->orWhereHas('livro.editora', fn ($editoraQ) => $editoraQ->where('nome', 'like', "%{$search}%"));
+                });
+            }
+            $this->historico = $query->orderByDesc('requisitado_em')->get();
+
+            // Indicadores globais
+            $this->totalAdminAtivas = Requisicao::whereNull('devolvido_em')->count();
+            $this->totalAdminUltimos30Dias = Requisicao::where('requisitado_em', '>=', now()->subDays(30))->count();
+            $this->totalAdminEntreguesHoje = Requisicao::whereDate('devolvido_em', now()->toDateString())->count();
+
+            // Tabela de "minhas requisições" (admin)
+            $minhasQuery = Requisicao::with(['livro.editora'])
+                ->where('user_id', $user->id);
+            if ($this->estado) {
+                if ($this->estado === 'requisitado') {
+                    $minhasQuery->whereNull('devolvido_em')->where(function($subQ) {
+                        $subQ->whereNull('estado_devolucao')->orWhere('estado_devolucao', '');
+                    });
+                } elseif ($this->estado === 'pendente') {
+                    $minhasQuery->where('estado_devolucao', 'pendente');
+                } elseif ($this->estado === 'aceite') {
+                    $minhasQuery->where('estado_devolucao', 'aceite');
+                } elseif ($this->estado === 'recusado') {
+                    $minhasQuery->where('estado_devolucao', 'recusado');
+                }
+            }
+            if ($this->dataRequisicaoInicio) {
+                $minhasQuery->whereDate('requisitado_em', '>=', $this->dataRequisicaoInicio);
+            }
+            if ($this->dataRequisicaoFim) {
+                $minhasQuery->whereDate('requisitado_em', '<=', $this->dataRequisicaoFim);
+            }
+            if ($this->dataPrevistaInicio) {
+                $minhasQuery->whereDate('fim_previsto_em', '>=', $this->dataPrevistaInicio);
+            }
+            if ($this->dataPrevistaFim) {
+                $minhasQuery->whereDate('fim_previsto_em', '<=', $this->dataPrevistaFim);
+            }
+            if ($this->dataDevolucaoInicio) {
+                $minhasQuery->whereDate('devolvido_em', '>=', $this->dataDevolucaoInicio);
+            }
+            if ($this->dataDevolucaoFim) {
+                $minhasQuery->whereDate('devolvido_em', '<=', $this->dataDevolucaoFim);
+            }
+            if ($this->search !== '') {
+                $search = $this->search;
+                $minhasQuery->where(function ($sub) use ($search) {
+                    $sub->whereHas('livro', function ($livroQ) use ($search) {
+                        $livroQ->where('nome', 'like', "%{$search}%")
+                            ->orWhere('isbn', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('livro.editora', fn ($editoraQ) => $editoraQ->where('nome', 'like', "%{$search}%"));
+                });
+            }
+            $this->minhasRequisicoes = $minhasQuery->orderByDesc('requisitado_em')->get();
+        } else {
+            // Utilizador normal: só as suas requisições
+            $query = Requisicao::with(['livro.editora'])
+                ->where('user_id', $user->id);
+            if ($this->estado) {
+                if ($this->estado === 'requisitado') {
+                    $query->whereNull('devolvido_em')->where(function($subQ) {
+                        $subQ->whereNull('estado_devolucao')->orWhere('estado_devolucao', '');
+                    });
+                } elseif ($this->estado === 'pendente') {
+                    $query->where('estado_devolucao', 'pendente');
+                } elseif ($this->estado === 'aceite') {
+                    $query->where('estado_devolucao', 'aceite');
+                } elseif ($this->estado === 'recusado') {
+                    $query->where('estado_devolucao', 'recusado');
+                }
+            }
+            if ($this->dataRequisicaoInicio) {
+                $query->whereDate('requisitado_em', '>=', $this->dataRequisicaoInicio);
+            }
+            if ($this->dataRequisicaoFim) {
+                $query->whereDate('requisitado_em', '<=', $this->dataRequisicaoFim);
+            }
+            if ($this->dataPrevistaInicio) {
+                $query->whereDate('fim_previsto_em', '>=', $this->dataPrevistaInicio);
+            }
+            if ($this->dataPrevistaFim) {
+                $query->whereDate('fim_previsto_em', '<=', $this->dataPrevistaFim);
+            }
+            if ($this->dataDevolucaoInicio) {
+                $query->whereDate('devolvido_em', '>=', $this->dataDevolucaoInicio);
+            }
+            if ($this->dataDevolucaoFim) {
+                $query->whereDate('devolvido_em', '<=', $this->dataDevolucaoFim);
+            }
+            if ($this->search !== '') {
+                $search = $this->search;
+                $query->where(function ($sub) use ($search) {
+                    $sub->whereHas('livro', function ($livroQ) use ($search) {
+                        $livroQ->where('nome', 'like', "%{$search}%")
+                            ->orWhere('isbn', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('livro.editora', fn ($editoraQ) => $editoraQ->where('nome', 'like', "%{$search}%"));
+                });
+            }
+            $this->historico = $query->orderByDesc('requisitado_em')->get();
+            // Para cidadão, minhasRequisicoes é igual ao histórico
+            $this->minhasRequisicoes = $this->historico;
+
+            // Indicadores do próprio utilizador
+            $this->totalAdminAtivas = Requisicao::where('user_id', $user->id)->whereNull('devolvido_em')->count();
+            $this->totalAdminUltimos30Dias = Requisicao::where('user_id', $user->id)->where('requisitado_em', '>=', now()->subDays(30))->count();
+            $this->totalAdminEntreguesHoje = Requisicao::where('user_id', $user->id)->whereDate('devolvido_em', now()->toDateString())->count();
+        }
+
+        return view('livewire.requisicao-table', [
+            'minhasRequisicoes' => $this->minhasRequisicoes,
+        ]);
     }
+
 }

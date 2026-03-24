@@ -25,7 +25,7 @@
             @endif
 
             <div class="mb-8">
-                <livewire:livros-requisicao-table />
+                <livewire:requisicao-table />
             </div>
         </div>
     </div>

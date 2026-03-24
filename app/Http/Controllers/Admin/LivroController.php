@@ -17,7 +17,7 @@ class LivroController extends Controller
 {
 	public function index(): View
 	{
-		return view('admin.livros');
+		return view('admin.livros.index');
 	}
 
 	public function create(): View

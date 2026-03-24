@@ -1,10 +1,9 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center gap-2">
-            {{ __('Editoras') }}
-        </h2>
+        <h1 class="text-2xl font-semibold text-slate-900">
+            Editoras
+        </h1>
     </x-slot>
-
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <livewire:editoras-table />
