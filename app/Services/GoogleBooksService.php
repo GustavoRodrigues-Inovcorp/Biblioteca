@@ -67,7 +67,7 @@ class GoogleBooksService
         $imagem_capa = $volumeInfo['imageLinks']['thumbnail'] ?? null;
 
         // Preço (se disponível)
-        $preco = null;
+        $preco = 0.00;
         if (!empty($item['saleInfo']['listPrice']['amount'])) {
             $preco = $item['saleInfo']['listPrice']['amount'];
         }

@@ -1,4 +1,3 @@
-
 @props([
     'placeholder' => 'Pesquisar...',
     'model' => 'search',

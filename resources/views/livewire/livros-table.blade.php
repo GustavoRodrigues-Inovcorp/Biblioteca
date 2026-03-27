@@ -56,13 +56,13 @@
             @endif
 
             @if (! $isAdmin && ! $forRequisicao)
-                <x-button
+                <x-secondary-button
                     type="button"
                     wire:click="exportarExcel"
-                    class="shrink-0 rounded-xl bg-green-600 hover:bg-green-700 text-white"
+                    class="rounded-xl text-green-700 bg-green-200 hover:bg-green-50"
                 >
                     Exportar Excel
-                </x-button>
+                </x-secondary-button>
             @endif
         </div>
 

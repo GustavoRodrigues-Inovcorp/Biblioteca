@@ -18,19 +18,26 @@ class GoogleBooksController extends Controller
         $this->livroImportService = $livroImportService;
     }
 
-    // Formulário de pesquisa
-    public function index()
+
+    // Formulário de pesquisa e resultados
+    public function index(Request $request)
     {
-        return view('admin.googlebooks.index');
+        $books = null;
+        $existingIsbns = [];
+        $q = $request->input('q');
+        if ($q) {
+            $result = $this->googleBooksService->searchBooks($q, 10);
+            $books = $result['items'] ?? [];
+            $existingIsbns = \App\Models\Livro::pluck('isbn')->filter(fn($isbn) => strlen($isbn) === 13)->all();
+        }
+        return view('admin.googlebooks.index', compact('books', 'existingIsbns', 'q'));
     }
 
-    // Processa pesquisa e mostra resultados
+    // Redirecionar POST para index para manter tudo na mesma view
     public function search(Request $request)
     {
         $request->validate(['q' => 'required|string']);
-        $result = $this->googleBooksService->searchBooks($request->q, 10);
-        $books = $result['items'] ?? [];
-        return view('admin.googlebooks.results', compact('books'));
+        return redirect()->route('admin.googlebooks.index', ['q' => $request->q]);
     }
 
     // Importa livro selecionado

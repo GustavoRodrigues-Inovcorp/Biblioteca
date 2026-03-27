@@ -47,11 +47,6 @@
 								'href' => route('admin.admin-users.index'),
 								'active' => request()->routeIs('admin.admin-users.*'),
 							],
-							[
-								'label' => 'Pesquisar Google Books',
-								'href' => route('admin.googlebooks.index'),
-								'active' => request()->routeIs('admin.googlebooks.*'),
-							],
 						];
 					@endphp
 					<nav class="flex-1 overflow-y-auto p-4 space-y-1 text-sm">

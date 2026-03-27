@@ -12,9 +12,17 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use App\Exports\LivrosExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LivroController extends Controller
-{
+{	
+	public function export()
+	{
+		$livros = Livro::with(['autores', 'editora'])->get();
+		return Excel::download(new LivrosExport($livros), 'livros.xlsx');
+	}
+
 	public function index(): View
 	{
 		return view('admin.livros.index');

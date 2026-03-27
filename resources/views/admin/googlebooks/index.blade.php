@@ -1,6 +1,15 @@
 <x-admin-layout>
     <x-slot name="header">
-        <h1 class="text-2xl font-semibold text-slate-900">Pesquisar Livros na Google Books</h1>
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h1 class="text-2xl font-semibold text-slate-900">
+                    Google Books
+                </h1>
+                <p class="text-sm text-slate-600">
+                    Pesquise livros na API do Google Books e importe para a biblioteca.
+                </p>
+            </div>
+        </div>
     </x-slot>
 
     @if(session('success'))
@@ -9,12 +18,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('admin.googlebooks.search') }}" class="max-w-lg mt-6">
-        @csrf
-        <div class="mb-3">
-            <label for="q" class="form-label">Título, autor ou ISBN</label>
-            <input type="text" class="form-control" id="q" name="q" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Pesquisar</button>
-    </form>
+    <div class="mt-6">
+        <livewire:googlebooks-table :books="$books ?? null" :existing-isbns="$existingIsbns ?? []" :q="$q ?? ''" :success="session('success')" />
+    </div>
 </x-admin-layout>

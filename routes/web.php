@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Admin\LivroController as AdminLivroController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\GoogleBooksController;
 use App\Http\Controllers\RequisicaoController;
+use App\Http\Controllers\LivroPublicoController;
 use App\Models\Autor;
 use App\Models\Editora;
 use App\Models\Livro;
@@ -21,7 +23,7 @@ Route::get('/livros', function () {
     return view('cidadao.livros.index');
 })->name('livros.index');
 
-Route::get('/livros/{livro}', [\App\Http\Controllers\LivroPublicoController::class, 'show'])->name('livros.show');
+Route::get('/livros/{livro}', [LivroPublicoController::class, 'show'])->name('livros.show');
 
 Route::get('/autores', function () {
     return view('cidadao.autores.index');
@@ -62,17 +64,15 @@ Route::middleware([
     })->name('dashboard');
 
     // Google Books API - Importação de livros
-    Route::get('/googlebooks', [\App\Http\Controllers\Admin\GoogleBooksController::class, 'index'])->name('googlebooks.index');
-    Route::post('/googlebooks/search', [\App\Http\Controllers\Admin\GoogleBooksController::class, 'search'])->name('googlebooks.search');
-    Route::post('/googlebooks/import', [\App\Http\Controllers\Admin\GoogleBooksController::class, 'import'])->name('googlebooks.import');
-    // Permitir GET em /googlebooks/search
-    Route::get('/googlebooks/search', function () {
-        return redirect()->route('admin.googlebooks.index');
-    })->name('googlebooks.search.get');
+
+    Route::match(['get', 'post'], '/googlebooks', [GoogleBooksController::class, 'index'])->name('googlebooks.index');
+    Route::post('/googlebooks/search', [GoogleBooksController::class, 'search'])->name('googlebooks.search');
+    Route::post('/googlebooks/import', [GoogleBooksController::class, 'import'])->name('googlebooks.import');
 
     Route::get('/livros', [AdminLivroController::class, 'index'])->name('livros');
     Route::get('/livros/criar', [AdminLivroController::class, 'create'])->name('livros.create');
     Route::post('/livros', [AdminLivroController::class, 'store'])->name('livros.store');
+    Route::get('/livros/exportar', [AdminLivroController::class, 'export'])->name('livros.export');
     Route::get('/livros/{livro}', [AdminLivroController::class, 'show'])->name('livros.show');
     Route::get('/livros/{livro}/editar', [AdminLivroController::class, 'edit'])->name('livros.edit');
     Route::put('/livros/{livro}', [AdminLivroController::class, 'update'])->name('livros.update');
