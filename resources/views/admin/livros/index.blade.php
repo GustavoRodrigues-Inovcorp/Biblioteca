@@ -16,7 +16,7 @@
                     href="{{ route('admin.googlebooks.index') }}"
                     class="inline-flex items-center rounded-md bg-white border border-blue-200 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-blue-700 transition hover:bg-blue-50"
                 >
-                    Google Books
+                    Importar livro
                 </a>
                 <a
                     href="{{ route('admin.livros.create') }}"

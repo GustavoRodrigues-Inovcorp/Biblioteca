@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between gap-3">
             <div>
                 <h1 class="text-2xl font-semibold text-slate-900">
-                    Google Books
+                    Importar Livro
                 </h1>
                 <p class="text-sm text-slate-600">
                     Pesquise livros na API do Google Books e importe para a biblioteca.
