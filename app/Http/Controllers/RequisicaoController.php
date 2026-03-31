@@ -10,6 +10,7 @@ use Illuminate\View\View;
 
 class RequisicaoController extends Controller
 {
+
     public function index(Request $request): View
     {
         $user = $request->user();

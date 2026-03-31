@@ -43,6 +43,11 @@
 								'active' => request()->routeIs('admin.livros'),
 							],
 							[
+								'label' => 'Reviews',
+								'href' => route('admin.reviews'),
+								'active' => request()->routeIs('admin.reviews'),
+							],
+							[
 								'label' => 'Administradores',
 								'href' => route('admin.admin-users.index'),
 								'active' => request()->routeIs('admin.admin-users.*'),

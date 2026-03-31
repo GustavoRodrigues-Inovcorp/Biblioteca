@@ -114,4 +114,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Requisicao::class);
     }
+
+    /**
+     * Um utilizador pode ter muitos reviews
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
 }

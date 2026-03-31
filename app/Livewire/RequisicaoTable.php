@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Requisicao;
+use App\Models\Review;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -19,6 +20,13 @@ class RequisicaoTable extends Component
     /** @var array<int> */
     public array $pedidosDevolucaoEnviados = [];
     public $minhasRequisicoes = [];
+
+    // Popup de review
+    public bool $mostrarPopupReview = false;
+    public ?int $livroParaReview = null;
+    public ?int $requisicaoParaReview = null;
+    public int $reviewRating = 0;
+    public string $reviewComentario = '';
 
     public function aceitarRequisicao($id)
     {
@@ -175,33 +183,67 @@ class RequisicaoTable extends Component
         $this->mostrarPopupDevolucao = true;
     }
 
-        public function confirmarDevolucao()
-        {
-            $id = $this->requisicaoParaDevolver;
-            $requisicao = Requisicao::find($id);
-            $user = auth()->user();
-            if ($requisicao && $requisicao->devolvido_em === null) {
-                if ($user && $user->isAdmin()) {
-                    $requisicao->estado_devolucao = 'aceite';
-                    $requisicao->devolvido_em = now()->toDateTimeString();
+    public function confirmarDevolucao()
+    {
+        $id = $this->requisicaoParaDevolver;
+        $requisicao = Requisicao::find($id);
+        $user = auth()->user();
+        if ($requisicao && $requisicao->devolvido_em === null) {
+            if ($user && $user->isAdmin()) {
+                $requisicao->estado_devolucao = 'aceite';
+                $requisicao->devolvido_em = now()->toDateTimeString();
+                $requisicao->save();
+                $this->dispatch('notify', message: 'Livro devolvido com sucesso!');
+            } else {
+                if ($requisicao->pedido_devolucao_em === null) {
+                    $requisicao->pedido_devolucao_em = now()->toDateTimeString();
+                    $requisicao->estado_devolucao = 'pendente';
                     $requisicao->save();
-                    $this->dispatch('notify', message: 'Livro devolvido com sucesso!');
-                } else {
-                    if ($requisicao->pedido_devolucao_em === null) {
-                        $requisicao->pedido_devolucao_em = now()->toDateTimeString();
-                        $requisicao->estado_devolucao = 'pendente';
-                        $requisicao->save();
-                    }
-                    $this->dispatch('notify', message: 'Pedido de devolução enviado!');
                 }
+                $this->dispatch('notify', message: 'Pedido de devolução enviado!');
+                // Mostrar popup de review imediatamente para cidadãos
+                $this->livroParaReview = $requisicao->livro_id;
+                $this->requisicaoParaReview = $requisicao->id;
+                $this->mostrarPopupReview = true;
             }
-            $this->mostrarPopupDevolucao = false;
-            $this->requisicaoParaDevolver = null;
-            $this->atualizarHistorico();
+        }
+        $this->mostrarPopupDevolucao = false;
+        $this->requisicaoParaDevolver = null;
+        $this->atualizarHistorico();
+    }
+
+    public function submeterReview()
+    {
+        $this->validate([
+            'reviewRating' => 'required|integer|min:1|max:5',
+            'reviewComentario' => 'nullable|string|max:1000',
+        ]);
+        $review = Review::create([
+            'user_id' => auth()->id(),
+            'livro_id' => $this->livroParaReview,
+            'requisicao_id' => $this->requisicaoParaReview,
+            'rating' => $this->reviewRating,
+            'comentario' => $this->reviewComentario,
+            'estado' => 'suspenso',
+        ]);
+
+        // Enviar email para todos os admins
+        $admins = \App\Models\User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            \Mail::to($admin->email)->send(new \App\Mail\NovaReviewMail($review));
         }
 
+        $this->mostrarPopupReview = false;
+        $this->livroParaReview = null;
+        $this->requisicaoParaReview = null;
+        $this->reviewRating = 0;
+        $this->reviewComentario = '';
+        $this->dispatch('notify', message: 'Review submetida com sucesso!');
+    }
+
+
     // Propriedades para estatísticas/admin
-        public $adminSearch = '';
+    public $adminSearch = '';
     public $adminRequisicoes = null;
     public $totalAdminAtivas = null;
     public $totalAdminUltimos30Dias = null;
@@ -211,8 +253,8 @@ class RequisicaoTable extends Component
     public $adminDataRequisicaoFim = null;
     public $adminDataPrevistaInicio = null;
     public $adminDataPrevistaFim = null;
-        public $adminDataDevolucaoInicio = null;
-        public $adminDataDevolucaoFim = null;
+    public $adminDataDevolucaoInicio = null;
+    public $adminDataDevolucaoFim = null;
     public $historico = [];
     // Filtros para cidadão
     public $estado = '';

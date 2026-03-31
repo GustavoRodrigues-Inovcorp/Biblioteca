@@ -9,6 +9,34 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Livro extends Model
 {
+    /**
+     * Sugere livros relacionados com base em palavras comuns na bibliografia.
+     * Exclui o próprio livro.
+     * @param int $limit
+     * @return \Illuminate\Support\Collection
+     */
+    public function relacionados($limit = 4)
+    {
+        if (!$this->bibliografia)
+            return collect();
+        $palavras = collect(preg_split('/\W+/u', mb_strtolower($this->bibliografia)))->filter(fn($w) => mb_strlen($w) > 3)->unique();
+        if ($palavras->isEmpty())
+            return collect();
+
+        $todos = Livro::where('id', '!=', $this->id)->get();
+        $relacionados = $todos->map(function ($livro) use ($palavras) {
+            if (!$livro->bibliografia)
+                return ['livro' => $livro, 'score' => 0];
+            $outras = collect(preg_split('/\W+/u', mb_strtolower($livro->bibliografia)))->filter(fn($w) => mb_strlen($w) > 3)->unique();
+            $comum = $palavras->intersect($outras)->count();
+            return ['livro' => $livro, 'score' => $comum];
+        })->filter(fn($item) => $item['score'] > 0)
+            ->sortByDesc('score')
+            ->take(5)
+            ->pluck('livro');
+        return $relacionados;
+    }
+
     protected $fillable = [
         'isbn',
         'nome',
@@ -34,7 +62,7 @@ class Livro extends Model
      * Relação com Autores (muitos para muitos)
      * Requer tabela pivot: autor_livro
      */
-    public function autores(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function autores(): BelongsToMany
     {
         return $this->belongsToMany(Autor::class, 'autor_livro', 'livros_id', 'autores_id');
     }
@@ -60,6 +88,14 @@ class Livro extends Model
      */
     public function isDisponivel(): bool
     {
-        return ! $this->requisicoesAtivas()->exists();
+        return !$this->requisicoesAtivas()->exists();
+    }
+
+    /**
+     * Relação com Reviews (um livro pode ter muitos reviews)
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
     }
 }
