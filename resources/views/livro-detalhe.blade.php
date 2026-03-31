@@ -6,13 +6,13 @@
     </x-slot>
 
     <div class="max-w-4xl mx-auto py-10">
-        /**
-        * Detalhes do livro, incluindo capa, título, autores, editora, preço e bibliografia.
-        * Se o livro estiver disponível, mostra botão para requisitar.
-        * Se o utilizador tiver requisitado e devolvido o livro, mostra formulário para submeter um review.
-        * Mostra também uma lista de reviews ativos para o livro.
-        * Sugere livros relacionados com base em palavras comuns na bibliografia.
-        */
+        {{--
+            Detalhes do livro, incluindo capa, título, autores, editora, preço e bibliografia.
+            Se o livro estiver disponível, mostra botão para requisitar.
+            Se o utilizador tiver requisitado e devolvido o livro, mostra formulário para submeter um review.
+            Mostra também uma lista de reviews ativos para o livro.
+            Sugere livros relacionados com base em palavras comuns na bibliografia.
+        --}}
         <div class="flex flex-col md:flex-row gap-8">
             <div class="flex-shrink-0">
                 <div class="h-64 w-44 overflow-hidden rounded shadow bg-gray-100 flex items-center justify-center">
@@ -84,10 +84,10 @@
                 <div class="text-xs text-slate-500">Ainda não existem reviews para este livro.</div>
             @endforelse
 
-            /**
-            * Formulário para submeter um review
-            * Apenas se o utilizador tiver requisitado e devolvido o livro
-            */
+            {{-- 
+                Formulário para submeter um review
+                Apenas se o utilizador tiver requisitado e devolvido o livro
+            --}}
             @if ($podeReview)
                 <div class="mb-8">
                     <h3 class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 mt-10">Deixe
@@ -122,10 +122,10 @@
                 </div>
             @endif
 
-            /**
-            * Sugere livros relacionados com base em palavras comuns na bibliografia.
-            * Exclui o próprio livro.
-            */
+            {{-- 
+                Sugere livros relacionados com base em palavras comuns na bibliografia.
+                Exclui o próprio livro.
+            --}}
             @if ($relacionados && $relacionados->count())
                 <div class="mt-12">
                     <h2 class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 mt-10">
@@ -150,11 +150,11 @@
                 </div>
             @endif
 
-            /**
-            * Tabela do histórico de requisições realizadas pelo utilizador.
-            * Mostra data de requisição e devolução.
-            * Se não houver histórico, mostra mensagem indicativa.
-            */
+            {{-- 
+                Tabela do histórico de requisições realizadas pelo utilizador.
+                Mostra data de requisição e devolução.
+                Se não houver histórico, mostra mensagem indicativa.
+            --}}
             <h2 class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 mt-10">Histórico de
                 Requisições</h2>
             <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
