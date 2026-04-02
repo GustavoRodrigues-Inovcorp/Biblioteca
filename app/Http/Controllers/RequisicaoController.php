@@ -111,6 +111,12 @@ class RequisicaoController extends Controller
             'devolvido_em' => now(),
         ]);
 
+        // Notificar alertas se o livro ficou disponível
+        $livro = $requisicao->livro;
+        if ($livro && $livro->isDisponivel()) {
+            $livro->notificarAlertasDisponivel();
+        }
+
         return redirect()
             ->route('requisicoes.index')
             ->with('status', 'Livro devolvido com sucesso.');

@@ -42,6 +42,11 @@ class RequisicaoTable extends Component
             $requisicao->estado_devolucao = 'aceite';
             $requisicao->devolvido_em = now()->toDateTimeString();
             $requisicao->save();
+            // Notificar alertas se o livro ficou disponível
+            $livro = $requisicao->livro;
+            if ($livro && $livro->isDisponivel()) {
+                $livro->notificarAlertasDisponivel();
+            }
         }
         $this->mostrarPopupAceitar = false;
         $this->requisicaoParaAceitar = null;

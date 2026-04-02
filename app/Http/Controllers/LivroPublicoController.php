@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Livro;
 use App\Models\Requisicao;
 use Illuminate\View\View;
+use Illuminate\Http\Request;
 
 class LivroPublicoController extends Controller
 {
@@ -44,5 +45,17 @@ class LivroPublicoController extends Controller
             'meuReview' => $meuReview,
             'relacionados' => $relacionados,
         ]);
+    }
+
+    public function alertaDisponivel(Request $request, Livro $livro)
+    {
+        $alerta = $request->user()->alertasLivro()->where('livro_id', $livro->id)->first();
+        if ($alerta) {
+            $alerta->delete();
+            return back()->with('success', 'Alerta removido. Não será notificado.');
+        } else {
+            $request->user()->alertasLivro()->create(['livro_id' => $livro->id]);
+            return back()->with('success', 'Será notificado quando o livro estiver disponível.');
+        }
     }
 }

@@ -32,15 +32,14 @@
                             @enderror
                         </div>
                         <div>
-                            <span class="block text-xs font-semibold text-yellow-700 mb-1">Comentário</span>
-                            <div class="mt-4.text-left">
-                                <textarea wire:model="reviewComentario" rows="2"
-                                    class="w-full rounded border border-yellow-300 focus:border-yellow-500 focus:ring-0 text-xs text-slate-500"></textarea>
+                            <span class="block text-xs font-semibold text-yellow-700">Comentário</span>
+                            <div class="text-left">
+                                <textarea name="comentario" rows="2"
+                                    class="mt-1 w-full rounded-md border-gray-300 focus:border-yellow-500 focus:ring-yellow-500 text-gray-700"></textarea>
                                 @error('reviewComentario')
                                     <span class="text-xs text-red-500">{{ $message }}</span>
                                 @enderror
-                                <span class="text-xs text-slate-500">A avaliação irá ser analisada pela
-                                    administração.</span>
+                                <span class="text-xs text-slate-500">*A avaliação irá ser analisada pela administração.</span>
                             </div>
                         </div>
                         <div class="flex justify-center gap-4 mt-6">
@@ -138,8 +137,8 @@
         @endif
 
         {{-- Tabela - As minhas requisições --}}
-        <div class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500">As minhas requisições
-        </div>
+        <span class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500">As minhas
+            requisições</span>
         <div class="flex flex-wrap gap-4 mb-6 mt-2">
             <div
                 class="flex-1 min-w-[180px] bg-white rounded-lg shadow border border-slate-200 p-4 flex flex-col items-center">

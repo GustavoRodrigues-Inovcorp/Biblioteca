@@ -32,7 +32,7 @@ class Livro extends Model
             return ['livro' => $livro, 'score' => $comum];
         })->filter(fn($item) => $item['score'] > 0)
             ->sortByDesc('score')
-            ->take(5)
+            ->take(6)
             ->pluck('livro');
         return $relacionados;
     }
@@ -97,5 +97,21 @@ class Livro extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Notifica os utilizadores que têm alertas para este livro quando ele fica disponível.
+     */
+    public function notificarAlertasDisponivel()
+    {
+        foreach ($this->alertas as $alerta) {
+            \Mail::to($alerta->user->email)->send(new \App\Mail\LivroDisponivelMail($this));
+            $alerta->delete();
+        }
+    }
+    
+    public function alertas()
+    {
+        return $this->hasMany(\App\Models\AlertaLivro::class);
     }
 }

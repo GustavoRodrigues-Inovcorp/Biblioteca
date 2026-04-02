@@ -122,4 +122,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Review::class);
     }
+
+    public function alertasLivro()
+    {
+        return $this->hasMany(\App\Models\AlertaLivro::class);
+    }
 }

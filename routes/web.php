@@ -44,6 +44,7 @@ Route::middleware([
     Route::post('/requisicoes', [RequisicaoController::class, 'store'])->name('requisicoes.store');
     Route::patch('/requisicoes/{requisicao}/devolver', [RequisicaoController::class, 'devolver'])->name('requisicoes.devolver');
     Route::post('/livros/{livro}/review', [ReviewController::class, 'store'])->name('reviews.store');
+    Route::post('/livros/{livro}/alerta', [LivroPublicoController::class, 'alertaDisponivel'])->name('livros.alerta');
 
 });
 

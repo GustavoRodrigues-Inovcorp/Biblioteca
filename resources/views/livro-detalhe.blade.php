@@ -8,7 +8,7 @@
     <div class="max-w-4xl mx-auto py-10">
         {{--
             Detalhes do livro, incluindo capa, título, autores, editora, preço e bibliografia.
-            Se o livro estiver disponível, mostra botão para requisitar.
+            Se o livro estiver disponível, mostra botão para requisitar. --}}
             Se o utilizador tiver requisitado e devolvido o livro, mostra formulário para submeter um review.
             Mostra também uma lista de reviews ativos para o livro.
             Sugere livros relacionados com base em palavras comuns na bibliografia.
@@ -25,7 +25,46 @@
                 </div>
             </div>
             <div class="flex-1 space-y-2">
-                <h1 class="text-2xl font-bold text-slate-800">{{ $livro->nome }}</h1>
+                <div class="flex items-center justify-between mb-2">
+                    <h1 class="text-2xl font-bold text-slate-800">{{ $livro->nome }}</h1>
+                    <div class="flex items-center gap-2">
+                        @if (!$livro->isDisponivel())
+                            @auth
+                                @php
+                                    $alertaAtivo = auth()->user()->alertasLivro->contains('livro_id', $livro->id);
+                                @endphp
+                                <form method="POST" action="{{ route('livros.alerta', $livro->id) }}">
+                                    @csrf
+                                    <button type="submit"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full border-2 transition hover:bg-slate-100"
+                                        title="Avisar-me quando disponível">
+                                        @if($alertaAtivo)
+                                            <!-- Sino preenchido -->
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="#64748b" viewBox="0 0 24 24" stroke="#64748b" stroke-width="1.5" class="w-5 h-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9a6 6 0 1 0-12 0v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                                            </svg>
+                                        @else
+                                            <!-- Sino outline -->
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#64748b" stroke-width="1.5" class="w-5 h-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9a6 6 0 1 0-12 0v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                                            </svg>
+                                        @endif
+                                    </button>
+                                </form>
+                            @endauth
+                        @endif
+                        <div>
+                            @if ($livro->isDisponivel())
+                                @include('components.livros.requisitar-form', [
+                                    'livro' => $livro,
+                                    'livrosRequisitados' => $livrosRequisitados ?? 0,
+                                ])
+                            @else
+                                <span class="inline-block px-4 py-2 rounded text-sm text-gray-500">Indisponível</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
                 <div class="flex flex-wrap gap-6 text-sm text-gray-500 mb-1 items-center">
                     <span class="uppercase tracking-wider"><strong>ISBN:</strong> {{ $livro->isbn }}</span>
 
@@ -40,32 +79,22 @@
                 </div>
 
                 <div class="text-sm text-gray-500">
-                    <span class="uppercase tracking-wider"><strong>Autor(es):</strong>
-                        @forelse ($livro->autores as $autor)
-                            <span>{{ $autor->nome }}</span>
-                        @empty
-                            <span>Sem autor</span>
-                        @endforelse
-                    </span>
+                    <span class="uppercase tracking-wider"><strong>Autor(es):</strong></span>
+                    @forelse ($livro->autores as $autor)
+                        <span class="ml-1">{{ $autor->nome }}</span>
+                    @empty
+                        <span class="ml-1">Sem autor</span>
+                    @endforelse
                 </div>
 
                 <div class="mt-2 text-gray-500 text-sm">
                     <span class="uppercase tracking-wider"><strong>Bibliografia:</strong></span>
                     <div class="mt-1">{{ $livro->bibliografia ?? '-' }}</div>
                 </div>
-                <div class="mt-4">
-                    @if ($livro->isDisponivel())
-                        @include('components.livros.requisitar-form', [
-                            'livro' => $livro,
-                            'livrosRequisitados' => $livrosRequisitados ?? 0,
-                        ])
-                    @else
-                        <span class="inline-block px-4 py-2 rounded text-sm text-gray-500">Indisponível</span>
-                    @endif
-                </div>
+                <!-- Botão de requisitar movido para junto do título -->
             </div>
         </div>
-        <div class="mt-10">
+        <div style="margin-top: 6rem;">
             <h2 class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500">Reviews</h2>
             @forelse ($livro->reviews->where('estado', 'ativo') as $review)
                 <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -111,11 +140,8 @@
                             </div>
                         </label>
                         <label class="block">
-                            <span
-                                class="text-slate-500 text-xs font-semibold uppercase tracking-wider">Comentário</span>
-                            <textarea name="comentario" rows="3"
-                                class="mt-1 w-full rounded-md border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-700">
-                        </textarea>
+                            <span class="text-slate-500 text-xs font-semibold uppercase tracking-wider">Comentário</span>
+                            <textarea name="comentario" rows="3" class="mt-1 w-full rounded-md border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-700"></textarea>
                         </label>
                         <x-button>Submeter Review</x-button>
                     </form>
@@ -127,24 +153,23 @@
                 Exclui o próprio livro.
             --}}
             @if ($relacionados && $relacionados->count())
-                <div class="mt-12">
+                <div style="margin-top: 6rem;">
                     <h2 class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 mt-10">
                         Livros Relacionados</h2>
-                    <div class="flex flex-row gap-8 overflow-x-auto pb-2">
+                        <div class="w-full flex flex-row gap-6 pb-2 justify-between items-end">
                         @foreach ($relacionados as $rel)
-                            <a href="{{ route('livros.show', $rel->id) }}"
-                                class="block bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-lg transition overflow-hidden min-w-[120px] max-w-[120px]">
-                                <div class="flex items-center justify-center bg-gray-100"
-                                    style="height: 180px; min-height: 180px;">
+                                <a href="{{ route('livros.show', $rel->id) }}"
+                                    class="flex-1 max-w-[150px] min-w-0 flex flex-col items-center transition hover:scale-105">
                                     @if ($rel->imagem_capa)
-                                        <img src="{{ str_starts_with($rel->imagem_capa, 'http') ? $rel->imagem_capa : asset('storage/' . $rel->imagem_capa) }}"
-                                            alt="Capa de {{ $rel->nome }}"
-                                            class="object-contain h-40 w-28 mx-auto" />
+                                        <div class="w-full h-[200px] aspect-[3/4] rounded-xl bg-white shadow-[4px_0_16px_-4px_#bbb,0_6px_16px_-4px_#bbb] flex items-end">
+                                            <img src="{{ str_starts_with($rel->imagem_capa, 'http') ? $rel->imagem_capa : asset('storage/' . $rel->imagem_capa) }}"
+                                                alt="Capa de {{ $rel->nome }}"
+                                                class="w-full h-full rounded-md object-cover aspect-[3/4]" />
+                                        </div>
                                     @else
                                         <span class="text-gray-400 text-xs">Sem capa</span>
                                     @endif
-                                </div>
-                            </a>
+                                </a>
                         @endforeach
                     </div>
                 </div>
@@ -155,7 +180,7 @@
                 Mostra data de requisição e devolução.
                 Se não houver histórico, mostra mensagem indicativa.
             --}}
-            <h2 class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 mt-10">Histórico de
+            <h2 class="pb-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500" style="margin-top: 6rem;">Histórico de
                 Requisições</h2>
             <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
