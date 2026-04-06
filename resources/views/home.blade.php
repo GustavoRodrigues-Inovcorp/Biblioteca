@@ -28,6 +28,35 @@
                     </div>
                 </div>
             </div>
+
+            <div class="bg-white shadow-sm sm:rounded-lg p-5">
+                <div class="flex flex-wrap items-center gap-3 justify-center">
+                    @guest
+                        @if (Route::has('login'))
+                            <a href="{{ route('login') }}"
+                                class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition">
+                                Iniciar sessão
+                            </a>
+                        @endif
+
+                        @if (Route::has('register'))
+                            <a href="{{ route('register') }}"
+                                class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-gray-900 hover:bg-black transition">
+                                Criar conta
+                            </a>
+                        @endif
+                    @endguest
+
+                    @auth
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <x-secondary-button type="submit">
+                                Sair
+                            </x-secondary-button>
+                        </form>
+                    @endauth
+                </div>
+            </div>
         </div>
     </div>
 </x-app-layout>

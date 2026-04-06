@@ -34,7 +34,7 @@
                         <div>
                             <span class="block text-xs font-semibold text-yellow-700">Comentário</span>
                             <div class="text-left">
-                                <textarea name="comentario" rows="2"
+                                <textarea wire:model.defer="reviewComentario" name="comentario" rows="2"
                                     class="mt-1 w-full rounded-md border-gray-300 focus:border-yellow-500 focus:ring-yellow-500 text-gray-700"></textarea>
                                 @error('reviewComentario')
                                     <span class="text-xs text-red-500">{{ $message }}</span>
