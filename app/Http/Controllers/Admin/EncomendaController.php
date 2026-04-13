@@ -15,16 +15,67 @@ class EncomendaController extends Controller
     public function index(Request $request): View
     {
         $statusFilter = (string) $request->query('status', 'todas');
+        $metodoFilter = trim((string) $request->query('metodo', ''));
+        $dataCriacaoInicio = trim((string) $request->query('data_criacao_inicio', ''));
+        $dataCriacaoFim = trim((string) $request->query('data_criacao_fim', ''));
+        $dataPagamentoInicio = trim((string) $request->query('data_pagamento_inicio', ''));
+        $dataPagamentoFim = trim((string) $request->query('data_pagamento_fim', ''));
+        $search = trim((string) $request->query('search', ''));
+
         $allowedStatuses = ['todas', 'paga', 'pendente'];
+        $allowedMetodos = ['card', 'mb_way', 'multibanco'];
+        $metodoAliases = [
+            'card' => ['card', 'stripe'],
+            'mb_way' => ['mb_way', 'mbway'],
+            'multibanco' => ['multibanco'],
+        ];
 
         if (!in_array($statusFilter, $allowedStatuses, true)) {
             $statusFilter = 'todas';
+        }
+
+        if (!in_array($metodoFilter, $allowedMetodos, true)) {
+            $metodoFilter = '';
         }
 
         $query = Encomenda::query()->with('user')->latest();
 
         if ($statusFilter !== 'todas') {
             $query->where('payment_status', $statusFilter);
+        }
+
+        if ($metodoFilter !== '') {
+            $query->whereIn('payment_method', $metodoAliases[$metodoFilter] ?? [$metodoFilter]);
+        }
+
+        if ($dataCriacaoInicio !== '') {
+            $query->whereDate('created_at', '>=', $dataCriacaoInicio);
+        }
+
+        if ($dataCriacaoFim !== '') {
+            $query->whereDate('created_at', '<=', $dataCriacaoFim);
+        }
+
+        if ($dataPagamentoInicio !== '') {
+            $query->whereDate('paid_at', '>=', $dataPagamentoInicio);
+        }
+
+        if ($dataPagamentoFim !== '') {
+            $query->whereDate('paid_at', '<=', $dataPagamentoFim);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($subQuery) use ($search): void {
+                $subQuery
+                    ->where('numero', 'like', "%{$search}%")
+                    ->orWhere('payment_method', 'like', "%{$search}%")
+                    ->orWhere('payment_status', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search): void {
+                        $userQuery
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
         }
 
         $encomendas = $query->paginate(20)->withQueryString();
@@ -34,6 +85,12 @@ class EncomendaController extends Controller
         return view('admin.encomendas.index', [
             'encomendas' => $encomendas,
             'statusFilter' => $statusFilter,
+            'metodoFilter' => $metodoFilter,
+            'dataCriacaoInicio' => $dataCriacaoInicio,
+            'dataCriacaoFim' => $dataCriacaoFim,
+            'dataPagamentoInicio' => $dataPagamentoInicio,
+            'dataPagamentoFim' => $dataPagamentoFim,
+            'search' => $search,
             'totais' => [
                 'todas' => Encomenda::query()->count(),
                 'paga' => Encomenda::query()->where('payment_status', 'paga')->count(),

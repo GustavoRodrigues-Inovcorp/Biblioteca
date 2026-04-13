@@ -17,7 +17,9 @@
             <span class="text-xs text-slate-500">Livros</span>
         </div>
     @endif
-    <h1 class="my-10 text-3xl font-bold tracking-tight text-slate-900 md:text-3xl">Livros</h1>
+    @if (! $isAdmin)
+        <h1 class="my-10 text-3xl font-bold tracking-tight text-slate-900 md:text-3xl">Livros</h1>
+    @endif
 
     <div class="flex gap-6 items-start">
 

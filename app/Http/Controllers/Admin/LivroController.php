@@ -104,7 +104,7 @@ class LivroController extends Controller
 
 	public function show(Livro $livro): View
 	{
-		$livro->load(['autores', 'editora', 'requisicoes.user']);
+		$livro->load(['autores', 'editora', 'requisicoes.user', 'reviews.user']);
 		return view('admin.livros.show', [
 			'livro' => $livro,
 		]);
