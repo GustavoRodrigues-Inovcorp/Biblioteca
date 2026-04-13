@@ -9,22 +9,10 @@
 ])
 
 {{-- Sidebar de filtros reutilizável --}}
-<aside class="sticky top-6 self-start w-52 shrink-0">
+<aside class="sticky top-44 self-start w-52 shrink-0">
     <div class="overflow-y-auto rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         @if ($showTitle)
-            <h3 class="mb-4 font-bold text-gray-800">Filtros</h3>
-        @endif
-
-        {{-- Filtros de visibilidade das colunas (checkboxes) --}}
-        @if (count($columnFilters) > 0)
-            <div class="space-y-2.5">
-                @foreach ($columnFilters as $filter)
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <x-checkbox wire:model.live="{{ $filter['model'] }}" />
-                        <span class="text-sm font-semibold text-gray-700">{{ $filter['label'] }}</span>
-                    </label>
-                @endforeach
-            </div>
+            <h3 class="text-lg font-bold text-gray-800">Filtros</h3>
         @endif
 
         @if (count($sortOptions) > 0)
@@ -42,7 +30,7 @@
                             $isActive = $option['isActive']($currentSortDirection);
                         @endphp
                         <button wire:click="setSortPreset('{{ $option['preset'] }}')"
-                            class="block w-full text-left py-0.5 transition-colors hover:text-blue-600 {{ $isActive ? 'text-blue-600' : 'text-gray-600' }}">
+                            class="block w-full text-left py-0.5 transition-colors hover:text-blue-700 {{ $isActive ? 'text-blue-700' : 'text-gray-600' }}">
                             {{ $option['label'] }}
                         </button>
                     @endforeach

@@ -23,8 +23,13 @@ class LivroPublicoController extends Controller
         $historico = $historicoQuery->orderByDesc('requisitado_em')->get();
 
         $livrosRequisitados = 0;
+        $requisitadoPorMim = false;
         if ($user && !$user->isAdmin()) {
             $livrosRequisitados = $user->requisicoes()->whereNull('devolvido_em')->count();
+            $requisitadoPorMim = Requisicao::where('livro_id', $livro->id)
+                ->where('user_id', $user->id)
+                ->whereNull('devolvido_em')
+                ->exists();
         }
 
         // Verificar se o cidadão pode deixar review
@@ -41,6 +46,7 @@ class LivroPublicoController extends Controller
             'livro' => $livro,
             'historico' => $historico,
             'livrosRequisitados' => $livrosRequisitados,
+            'requisitadoPorMim' => $requisitadoPorMim,
             'podeReview' => $podeReview,
             'meuReview' => $meuReview,
             'relacionados' => $relacionados,

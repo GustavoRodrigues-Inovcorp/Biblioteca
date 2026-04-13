@@ -35,6 +35,16 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'delivery_nome',
+        'delivery_morada',
+        'delivery_codigo_postal',
+        'delivery_localidade',
+        'delivery_addresses',
+        'stripe_customer_id',
+        'saved_card',
+        'cart_items_snapshot',
+        'cart_updated_at',
+        'cart_abandoned_notified_at',
     ];
 
     /**
@@ -68,6 +78,11 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'delivery_addresses' => 'array',
+            'saved_card' => 'array',
+            'cart_items_snapshot' => 'array',
+            'cart_updated_at' => 'datetime',
+            'cart_abandoned_notified_at' => 'datetime',
         ];
     }
 
@@ -121,6 +136,11 @@ class User extends Authenticatable
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function encomendas(): HasMany
+    {
+        return $this->hasMany(Encomenda::class);
     }
 
     public function alertasLivro()

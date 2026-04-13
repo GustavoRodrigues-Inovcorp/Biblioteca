@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\Admin\LivroController as AdminLivroController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\EncomendaController as AdminEncomendaController;
 use App\Http\Controllers\Admin\GoogleBooksController;
 use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\LivroPublicoController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\CarrinhoController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Models\Autor;
 use App\Models\Editora;
 use App\Models\Livro;
@@ -34,6 +37,8 @@ Route::get('/editoras', function () {
     return view('cidadao.editoras.index');
 })->name('editoras.index');
 
+Route::post('/stripe/webhook', [StripeWebhookController::class, '__invoke']);
+
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
@@ -46,6 +51,25 @@ Route::middleware([
     Route::post('/livros/{livro}/review', [ReviewController::class, 'store'])->name('reviews.store');
     Route::post('/livros/{livro}/alerta', [LivroPublicoController::class, 'alertaDisponivel'])->name('livros.alerta');
 
+});
+
+Route::middleware([
+    'auth:sanctum',
+    config('jetstream.auth_session'),
+    'verified',
+    'role:cidadao',
+])->group(function (): void {
+    Route::get('/carrinho', [CarrinhoController::class, 'index'])->name('carrinho.index');
+    Route::get('/checkout/morada-entrega', [CarrinhoController::class, 'moradaEntrega'])->name('checkout.morada-entrega');
+    Route::post('/checkout/morada-entrega', [CarrinhoController::class, 'storeMoradaEntrega'])->name('checkout.morada-entrega.store');
+    Route::get('/checkout/pagamento', [CarrinhoController::class, 'pagamento'])->name('checkout.pagamento');
+    Route::post('/checkout/pagamento', [CarrinhoController::class, 'storePagamento'])->name('checkout.pagamento.store');
+    Route::get('/checkout/revisao', [CarrinhoController::class, 'revisao'])->name('checkout.revisao');
+    Route::post('/checkout/pagamento/stripe', [CarrinhoController::class, 'pagarComStripe'])->name('checkout.pagamento.stripe');
+    Route::get('/checkout/pagamento/stripe/sucesso', [CarrinhoController::class, 'stripeSuccess'])->name('checkout.stripe.success');
+    Route::post('/carrinho/livros/{livro}', [CarrinhoController::class, 'add'])->name('carrinho.add');
+    Route::delete('/carrinho/livros/{livro}', [CarrinhoController::class, 'remove'])->name('carrinho.remove');
+    Route::delete('/carrinho', [CarrinhoController::class, 'clear'])->name('carrinho.clear');
 });
 
 Route::middleware([
@@ -96,9 +120,11 @@ Route::middleware([
         return view('admin.requisicoes.index');
     })->name('requisicoes');
 
+    // Rotas para gestão de encomendas
+    Route::get('/encomendas', [AdminEncomendaController::class, 'index'])->name('encomendas.index');
+
     // Rotas para gestão de reviews
     Route::get('/reviews', function () {
         return view('admin.reviews.index');
     })->name('reviews');
 });
-

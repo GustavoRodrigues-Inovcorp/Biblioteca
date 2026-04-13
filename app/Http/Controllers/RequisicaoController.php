@@ -88,7 +88,7 @@ class RequisicaoController extends Controller
                 ->with('status', 'Requisição criada com sucesso.');
         } else {
             return redirect()
-                ->route('livros.index')
+                ->back()
                 ->with('status', 'Requisição criada com sucesso.');
         }
     }

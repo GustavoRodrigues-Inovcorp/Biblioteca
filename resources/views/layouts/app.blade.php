@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <style>[x-cloak]{display:none !important;}</style>
 
         <title>Biblioteca</title>
         <link rel="icon" type="image/png" sizes="64x64" href="{{ asset('favicon.png') }}">
@@ -18,11 +19,12 @@
         <!-- Styles -->
         @livewireStyles
     </head>
-    <body class="font-sans antialiased min-h-screen bg-gray-100 flex flex-col">
+    <body class="font-sans antialiased min-h-screen bg-white flex flex-col">
         <x-banner />
 
         <div class="flex-1">
             @livewire('navigation-menu')
+            <x-cart-preview-drawer />
 
             <!-- Page Heading -->
             @if (isset($header))

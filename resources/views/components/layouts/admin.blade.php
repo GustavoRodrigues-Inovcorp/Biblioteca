@@ -17,7 +17,7 @@
 		@vite(['resources/css/app.css', 'resources/js/app.js'])
 		@livewireStyles
 	</head>
-	<body class="font-sans antialiased h-screen overflow-hidden bg-gray-100 text-gray-900">
+	<body class="font-sans antialiased h-screen overflow-hidden bg-slate-50 text-gray-900">
 		<x-banner />
 
 		<div x-data="{ sidebarOpen: false }" class="h-screen">
@@ -36,6 +36,11 @@
 								'label' => 'Requisições',
 								'href' => route('admin.requisicoes'),
 								'active' => request()->routeIs('admin.requisicoes'),
+							],
+							[
+								'label' => 'Encomendas',
+								'href' => route('admin.encomendas.index'),
+								'active' => request()->routeIs('admin.encomendas.*'),
 							],
 							[
 								'label' => 'Livros',

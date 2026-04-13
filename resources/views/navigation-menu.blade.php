@@ -1,164 +1,131 @@
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
-    <!-- Primary Navigation Menu -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <div class="flex">
-                <!-- Logo -->
-                <div class="shrink-0 flex items-center">
-                    <a href="{{ route('home') }}">
-                        <x-application-mark class="block h-9 w-auto" />
-                    </a>
+<nav x-data="{ open: false }" class="sticky top-0 z-50 border-b border-slate-200 bg-white bg-opacity-90 backdrop-blur-sm">
+    @php
+        $totalCarrinho = collect(session('carrinho', []))->sum(fn ($qtd) => (int) $qtd);
+    @endphp
+
+    <div class="border-b border-blue-900 bg-blue-800 text-white">
+        <div class="mx-auto flex max-w-7xl items-center align-center justify-center px-4 py-0.5 sm:px-6 lg:px-8">
+            <h1 class="flex items-center gap-1 font-medium tracking-wide text-white">
+                <img style="height: 1.7rem; width: auto;" src="{{ asset('images/inovcorp.png') }}" alt="Inovcorp" />
+                <span class="text-[9px] uppercase sm:text-[10px]">Inovcorp</span>
+            </h1>
+        </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="flex min-h-16 items-center gap-4 py-3 md:gap-8 lg:gap-10">
+            <a href="{{ route('home') }}" class="flex shrink-0 items-center gap-1 text-slate-900">
+                <x-application-mark class="block h-14 w-auto" />
+                <span class="hidden text-xl font-bold font-serif uppercase tracking-wide text-slate-900 lg:block">INOVBOOKS</span>
+            </a>
+
+            <form method="GET" action="{{ route('livros.index') }}" class="hidden w-full max-w-2xl md:mx-4 md:block lg:mx-8">
+                <label for="nav-search" class="sr-only">Pesquisar livros</label>
+                <div class="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-slate-50 focus-within:border-blue-800 focus-within:ring-2 focus-within:ring-blue-200 transition">
+                    <input id="nav-search" name="search" type="text" value="{{ request('search', request('q')) }}" placeholder="Pesquisar..."
+                        class="h-9 w-full border-none bg-transparent px-4 text-sm text-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-0">
+                    <button type="submit" class="inline-flex h-9 items-center justify-center bg-blue-800 px-4 text-white hover:bg-blue-900 transition" aria-label="Pesquisar">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                        </svg>
+                        <span class="sr-only">Pesquisar</span>
+                    </button>
                 </div>
+            </form>
 
-                <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link href="{{ route('home') }}" :active="request()->routeIs('home')">
-                        {{ __('Início') }}
-                    </x-nav-link>
-                    <x-nav-link href="{{ route('livros.index') }}" :active="request()->routeIs('livros.index')">
-                        {{ __('Livros') }}
-                    </x-nav-link>
-                    <x-nav-link href="{{ route('autores.index') }}" :active="request()->routeIs('autores.index')">
-                        {{ __('Autores') }}
-                    </x-nav-link>
-                    <x-nav-link href="{{ route('editoras.index') }}" :active="request()->routeIs('editoras.index')">
-                        {{ __('Editoras') }}
-                    </x-nav-link>
-                    @auth
-                        <x-nav-link href="{{ route('requisicoes.index') }}" :active="request()->routeIs('requisicoes.index')">
-                            {{ __('Requisições') }}
-                        </x-nav-link>
-                    @endauth
-                </div>
-            </div>
-
-            @auth
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <!-- Teams Dropdown -->
-                @if (Laravel\Jetstream\Jetstream::hasTeamFeatures())
-                    <div class="ms-3 relative">
-                        <x-dropdown align="right" width="60">
-                            <x-slot name="trigger">
-                                <span class="inline-flex rounded-md">
-                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none focus:bg-gray-50 active:bg-gray-50 transition ease-in-out duration-150">
-                                        {{ Auth::user()->currentTeam->name }}
-
-                                        <svg class="ms-2 -me-0.5 size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
-                                        </svg>
-                                    </button>
+            <div class="ml-auto hidden items-center gap-4 md:flex">
+                @auth
+                    @if (!auth()->user()->isAdmin())
+                        <a href="{{ route('carrinho.index') }}"
+                            class="relative inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 {{ request()->routeIs('carrinho.index') ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200' : '' }}"
+                            title="Carrinho">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.839l.383 1.437M7.5 14.25h9.75m-9.75 0L5.4 5.276M7.5 14.25 5.4 5.276m0 0L4.724 3.75M5.4 5.276h14.324a.75.75 0 0 1 .73.928l-1.086 5.43a.75.75 0 0 1-.73.572H7.5" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+                            </svg>
+                            @if ($totalCarrinho > 0)
+                                <span class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-blue-800 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                    {{ $totalCarrinho }}
                                 </span>
-                            </x-slot>
+                            @endif
+                        </a>
+                    @endif
 
-                            <x-slot name="content">
-                                <div class="w-60">
-                                    <!-- Team Management -->
-                                    <div class="block px-4 py-2 text-xs text-gray-400">
-                                        {{ __('Manage Team') }}
-                                    </div>
-
-                                    <!-- Team Settings -->
-                                    <x-dropdown-link href="{{ route('teams.show', Auth::user()->currentTeam->id) }}">
-                                        {{ __('Team Settings') }}
-                                    </x-dropdown-link>
-
-                                    @can('create', Laravel\Jetstream\Jetstream::newTeamModel())
-                                        <x-dropdown-link href="{{ route('teams.create') }}">
-                                            {{ __('Create New Team') }}
-                                        </x-dropdown-link>
-                                    @endcan
-
-                                    <!-- Team Switcher -->
-                                    @if (Auth::user()->allTeams()->count() > 1)
-                                        <div class="border-t border-gray-200"></div>
-
-                                        <div class="block px-4 py-2 text-xs text-gray-400">
-                                            {{ __('Switch Teams') }}
-                                        </div>
-
-                                        @foreach (Auth::user()->allTeams() as $team)
-                                            <x-switchable-team :team="$team" />
-                                        @endforeach
-                                    @endif
-                                </div>
-                            </x-slot>
-                        </x-dropdown>
-                    </div>
-                @endif
-
-                <!-- Settings Dropdown -->
-                <div class="ms-3 relative">
                     <x-dropdown align="right" width="48">
                         <x-slot name="trigger">
                             @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
-                                <button class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition">
+                                <button class="inline-flex items-center rounded-full border border-slate-200 bg-white p-0.5 text-sm transition hover:border-blue-200 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-200">
                                     <img class="size-8 rounded-full object-cover" src="{{ Auth::user()->profile_photo_url }}" alt="{{ Auth::user()->name }}" />
                                 </button>
                             @else
-                                <span class="inline-flex rounded-md">
-                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none focus:bg-gray-50 active:bg-gray-50 transition ease-in-out duration-150">
-                                        {{ Auth::user()->name }}
-
-                                        <svg class="ms-2 -me-0.5 size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                        </svg>
-                                    </button>
-                                </span>
+                                <button type="button" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                    </svg>
+                                    Perfil
+                                </button>
                             @endif
                         </x-slot>
 
                         <x-slot name="content">
-                            <!-- Account Management -->
-                            <div class="block px-4 py-2 text-xs text-gray-400">
-                                {{ __('Manage Account') }}
-                            </div>
+                            <div class="block px-4 py-2 text-xs text-slate-500">Conta</div>
 
                             <x-dropdown-link href="{{ route('profile.show') }}">
-                                {{ __('Profile') }}
+                                Perfil
                             </x-dropdown-link>
 
                             @if (Laravel\Jetstream\Jetstream::hasApiFeatures())
                                 <x-dropdown-link href="{{ route('api-tokens.index') }}">
-                                    {{ __('API Tokens') }}
+                                    API Tokens
                                 </x-dropdown-link>
                             @endif
 
-                            <div class="border-t border-gray-200"></div>
+                            @if (Laravel\Jetstream\Jetstream::hasTeamFeatures())
+                                <div class="border-t border-slate-200"></div>
+                                <div class="block px-4 py-2 text-xs text-slate-500">Equipa</div>
 
-                            <!-- Authentication -->
+                                <x-dropdown-link href="{{ route('teams.show', Auth::user()->currentTeam->id) }}">
+                                    Configuracoes da equipa
+                                </x-dropdown-link>
+
+                                @can('create', Laravel\Jetstream\Jetstream::newTeamModel())
+                                    <x-dropdown-link href="{{ route('teams.create') }}">
+                                        Criar nova equipa
+                                    </x-dropdown-link>
+                                @endcan
+
+                                @if (Auth::user()->allTeams()->count() > 1)
+                                    <div class="border-t border-slate-200"></div>
+                                    <div class="block px-4 py-2 text-xs text-slate-500">Trocar de equipa</div>
+                                    @foreach (Auth::user()->allTeams() as $team)
+                                        <x-switchable-team :team="$team" />
+                                    @endforeach
+                                @endif
+                            @endif
+
+                            <div class="border-t border-slate-200"></div>
+
                             <form method="POST" action="{{ route('logout') }}" x-data>
                                 @csrf
-
-                                <x-dropdown-link href="{{ route('logout') }}"
-                                         @click.prevent="$root.submit();">
-                                    {{ __('Log Out') }}
+                                <x-dropdown-link href="{{ route('logout') }}" @click.prevent="$root.submit();">
+                                    Terminar sessão
                                 </x-dropdown-link>
                             </form>
                         </x-slot>
                     </x-dropdown>
-                </div>
+                @endauth
+
+                @guest
+                    @if (Route::has('login'))
+                        <a href="{{ route('login') }}" class="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:text-blue-800">
+                            Entrar
+                        </a>
+                    @endif
+                @endguest
             </div>
-            @endauth
 
-            @guest
-            <div class="hidden sm:flex sm:items-center sm:ms-6 gap-2">
-                @if (Route::has('login'))
-                    <a href="{{ route('login') }}" class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition">
-                        {{ __('Login') }}
-                    </a>
-                @endif
-
-                @if (Route::has('register'))
-                    <a href="{{ route('register') }}" class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-gray-900 hover:bg-black transition">
-                        Criar conta
-                    </a>
-                @endif
-            </div>
-            @endguest
-
-            <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
+            <div class="ml-auto flex items-center md:hidden">
+                <button @click="open = ! open" class="inline-flex items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 hover:text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-200 transition">
                     <svg class="size-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -166,28 +133,85 @@
                 </button>
             </div>
         </div>
+
+        <div class="hidden border-t border-slate-200 md:block">
+            <div class="flex items-center justify-center gap-6 py-2.5 lg:gap-10">
+                <x-nav-link href="{{ route('livros.index') }}" :active="request()->routeIs('livros.index')">
+                    Livros
+                </x-nav-link>
+                <x-nav-link href="{{ route('autores.index') }}" :active="request()->routeIs('autores.index')">
+                    Autores
+                </x-nav-link>
+                <x-nav-link href="{{ route('editoras.index') }}" :active="request()->routeIs('editoras.index')">
+                    Editoras
+                </x-nav-link>
+                @auth
+                    <x-nav-link href="{{ route('requisicoes.index') }}" :active="request()->routeIs('requisicoes.index')">
+                        Requisições
+                    </x-nav-link>
+                @endauth
+            </div>
+        </div>
     </div>
 
-    <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
+    <div :class="{'block': open, 'hidden': ! open}" class="hidden border-t border-slate-200 bg-slate-50 md:hidden">
+        <div class="space-y-2 px-4 pb-4 pt-3">
+            <form method="GET" action="{{ route('livros.index') }}">
+                <label for="nav-search-mobile" class="sr-only">Pesquisar livros</label>
+                <div class="flex items-center overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-blue-800 focus-within:ring-2 focus-within:ring-blue-200 transition">
+                    <input id="nav-search-mobile" name="search" type="text" value="{{ request('search', request('q')) }}" placeholder="Pesquisar livros..."
+                        class="h-10 w-full border-none bg-transparent px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-0">
+                    <button type="submit" class="inline-flex h-10 items-center justify-center bg-blue-800 px-3 text-white hover:bg-blue-900 transition" aria-label="Pesquisar">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                        </svg>
+                        <span class="sr-only">Pesquisar</span>
+                    </button>
+                </div>
+            </form>
+
             <x-responsive-nav-link href="{{ route('home') }}" :active="request()->routeIs('home')">
-                {{ __('Início') }}
+                Inicio
             </x-responsive-nav-link>
             <x-responsive-nav-link href="{{ route('livros.index') }}" :active="request()->routeIs('livros.index')">
-                {{ __('Livros') }}
+                Livros
             </x-responsive-nav-link>
             <x-responsive-nav-link href="{{ route('autores.index') }}" :active="request()->routeIs('autores.index')">
-                {{ __('Autores') }}
+                Autores
             </x-responsive-nav-link>
             <x-responsive-nav-link href="{{ route('editoras.index') }}" :active="request()->routeIs('editoras.index')">
-                {{ __('Editoras') }}
+                Editoras
             </x-responsive-nav-link>
+
+            @auth
+                <x-responsive-nav-link href="{{ route('profile.show') }}" :active="request()->routeIs('profile.show')">
+                    Perfil
+                </x-responsive-nav-link>
+
+                @if (!auth()->user()->isAdmin())
+                    <x-responsive-nav-link href="{{ route('carrinho.index') }}" :active="request()->routeIs('carrinho.index')">
+                        Carrinho @if ($totalCarrinho > 0)
+                            ({{ $totalCarrinho }})
+                        @endif
+                    </x-responsive-nav-link>
+                @endif
+
+                <x-responsive-nav-link href="{{ route('requisicoes.index') }}" :active="request()->routeIs('requisicoes.index')">
+                    Requisicoes
+                </x-responsive-nav-link>
+
+                <form method="POST" action="{{ route('logout') }}" x-data>
+                    @csrf
+                    <x-responsive-nav-link href="{{ route('logout') }}" @click.prevent="$root.submit();">
+                        Terminar sessao
+                    </x-responsive-nav-link>
+                </form>
+            @endauth
 
             @guest
                 @if (Route::has('login'))
                     <x-responsive-nav-link href="{{ route('login') }}" :active="request()->routeIs('login')">
-                        {{ __('Login') }}
+                        Entrar
                     </x-responsive-nav-link>
                 @endif
 
@@ -197,81 +221,6 @@
                     </x-responsive-nav-link>
                 @endif
             @endguest
-
         </div>
-
-        <!-- Responsive Settings Options -->
-        @auth
-        <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="flex items-center px-4">
-                @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
-                    <div class="shrink-0 me-3">
-                        <img class="size-10 rounded-full object-cover" src="{{ Auth::user()->profile_photo_url }}" alt="{{ Auth::user()->name }}" />
-                    </div>
-                @endif
-
-                <div>
-                    <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                    <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
-                </div>
-            </div>
-
-            <div class="mt-3 space-y-1">
-                <!-- Account Management -->
-                <x-responsive-nav-link href="{{ route('profile.show') }}" :active="request()->routeIs('profile.show')">
-                    {{ __('Profile') }}
-                </x-responsive-nav-link>
-
-                @if (Laravel\Jetstream\Jetstream::hasApiFeatures())
-                    <x-responsive-nav-link href="{{ route('api-tokens.index') }}" :active="request()->routeIs('api-tokens.index')">
-                        {{ __('API Tokens') }}
-                    </x-responsive-nav-link>
-                @endif
-
-                <!-- Authentication -->
-                <form method="POST" action="{{ route('logout') }}" x-data>
-                    @csrf
-
-                    <x-responsive-nav-link href="{{ route('logout') }}"
-                                   @click.prevent="$root.submit();">
-                        {{ __('Log Out') }}
-                    </x-responsive-nav-link>
-                </form>
-
-                <!-- Team Management -->
-                @if (Laravel\Jetstream\Jetstream::hasTeamFeatures())
-                    <div class="border-t border-gray-200"></div>
-
-                    <div class="block px-4 py-2 text-xs text-gray-400">
-                        {{ __('Manage Team') }}
-                    </div>
-
-                    <!-- Team Settings -->
-                    <x-responsive-nav-link href="{{ route('teams.show', Auth::user()->currentTeam->id) }}" :active="request()->routeIs('teams.show')">
-                        {{ __('Team Settings') }}
-                    </x-responsive-nav-link>
-
-                    @can('create', Laravel\Jetstream\Jetstream::newTeamModel())
-                        <x-responsive-nav-link href="{{ route('teams.create') }}" :active="request()->routeIs('teams.create')">
-                            {{ __('Create New Team') }}
-                        </x-responsive-nav-link>
-                    @endcan
-
-                    <!-- Team Switcher -->
-                    @if (Auth::user()->allTeams()->count() > 1)
-                        <div class="border-t border-gray-200"></div>
-
-                        <div class="block px-4 py-2 text-xs text-gray-400">
-                            {{ __('Switch Teams') }}
-                        </div>
-
-                        @foreach (Auth::user()->allTeams() as $team)
-                            <x-switchable-team :team="$team" component="responsive-nav-link" />
-                        @endforeach
-                    @endif
-                @endif
-            </div>
-        </div>
-        @endauth
     </div>
 </nav>
