@@ -110,14 +110,6 @@ php artisan test --filter "utilizador ve apenas as suas requisicoes"
 php artisan test --filter "nao e possivel requisitar livro sem stock disponivel"
 ```
 
-### Tabela de Logs (Admin)
-
-- Autenticar como administrador.
-- Abrir o menu de logs no painel admin.
-- Confirmar que as ações relevantes (ex.: criação/devolução de requisições) ficam registadas.
-
-Sugestão para apresentação: correr os testes no terminal e, de seguida, mostrar a tabela de logs no browser para evidenciar rastreabilidade.
-
 ## Atualizar no GitHub
 
 Fluxo recomendado no PowerShell:
@@ -125,7 +117,7 @@ Fluxo recomendado no PowerShell:
 ```powershell
 git status
 git add .
-git commit -m "feat: testes Pest de requisicoes e logs admin"
+git commit -m "test"
 git push origin main
 ```
 
