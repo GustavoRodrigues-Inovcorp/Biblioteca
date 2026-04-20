@@ -61,12 +61,9 @@ class AutoresTable extends Component
     {
         $search = trim($this->search);
 
-        // Query base com contagem e livros associados para evitar N+1 na view.
+        // Query base com contagem de livros para listagem publica de autores.
         $query = Autor::query()
             ->withCount('livros')
-            ->with([
-                'livros' => fn ($q) => $q->select('livros.id', 'nome', 'imagem_capa')->orderBy('nome'),
-            ])
             ->when($search !== '', function ($q) use ($search) {
                 $q->where('nome', 'like', "%{$search}%");
             });

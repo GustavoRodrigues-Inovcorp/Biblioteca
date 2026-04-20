@@ -5,24 +5,7 @@
     {{-- Só emitir o JS global para o número de livros requisitados se for utilizador autenticado e não admin --}}
     {{-- Só para utilizadores autenticados e não admins --}}
 
-    @if(! $isAdmin)
-        <div class="mb-6 flex items-center gap-2 text-sm">
-            <a href="{{ route('home') }}" class="inline-flex items-center gap-1 text-slate-800">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="h-4 w-4 shrink-0" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12 11.204 3.046a1.125 1.125 0 0 1 1.592 0L21.75 12M4.5 9.75V19.5A1.5 1.5 0 0 0 6 21h4.5v-5.25a1.5 1.5 0 0 1 1.5-1.5h0a1.5 1.5 0 0 1 1.5 1.5V21H18a1.5 1.5 0 0 0 1.5-1.5V9.75" />
-                </svg>
-                <span class="text-xs underline underline-offset-2 ml-2">Home</span>
-            </a>
-            <span class="text-xs text-slate-400">/</span>
-            <span class="text-xs text-slate-500">Livros</span>
-        </div>
-    @endif
-    @if (! $isAdmin)
-        <h1 class="my-10 text-3xl font-bold tracking-tight text-slate-900 md:text-3xl">Livros</h1>
-    @endif
-
     <div class="flex gap-6 items-start">
-
     @if (! $isAdmin)
         @include('livewire.components.filters-sidebar', [
             'sortOptions' => [

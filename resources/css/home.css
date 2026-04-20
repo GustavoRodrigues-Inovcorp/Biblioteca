@@ -1,0 +1,131 @@
+.home-copy {
+    font-family: 'Manrope', 'Figtree', sans-serif;
+    letter-spacing: 0.01em;
+}
+
+.home-page {
+    background: #f3f4f6;
+}
+
+.home-hero {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(120deg, #0f2f78 0%, #173f9e 54%, #1d4ed8 100%);
+    color: #ffffff;
+}
+
+.home-glow-left,
+.home-glow-right {
+    pointer-events: none;
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(70px);
+    opacity: 0.35;
+}
+
+.home-glow-left {
+    left: -80px;
+    top: -70px;
+    width: 260px;
+    height: 260px;
+    background: #7dd3fc;
+}
+
+.home-glow-right {
+    right: -100px;
+    bottom: -90px;
+    width: 310px;
+    height: 310px;
+    background: #fde68a;
+}
+
+.home-hero-title {
+    font-family: inherit;
+    letter-spacing: -0.01em;
+}
+
+.home-stats-panel {
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 1.5rem;
+    background: rgba(8, 19, 54, 0.45);
+    box-shadow: 0 20px 40px rgba(3, 7, 18, 0.35);
+    backdrop-filter: blur(8px);
+}
+
+.home-stat-box {
+    border: 1px solid rgba(191, 219, 254, 0.45);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.home-card {
+    border: 1px solid #d1d5db;
+    border-radius: 1rem;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    transition: transform 240ms ease, box-shadow 240ms ease;
+}
+
+.home-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+}
+
+.home-pill {
+    border: 1px solid #bfdbfe;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.2);
+    color: #dbeafe;
+}
+
+.home-btn-primary {
+    border-radius: 9999px;
+    background: #facc15;
+    color: #1e293b;
+    font-weight: 700;
+    transition: background-color 180ms ease;
+    box-shadow: 0 6px 16px rgba(250, 204, 21, 0.28);
+}
+
+.home-btn-primary:hover {
+    background: #eab308;
+}
+
+.home-btn-secondary {
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 9999px;
+    color: #ffffff;
+    font-weight: 700;
+    transition: background-color 180ms ease;
+}
+
+.home-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.home-cta-title {
+    font-family: inherit;
+    letter-spacing: -0.01em;
+}
+
+.home-fade-up {
+    animation: homeFadeUp 700ms ease-out both;
+}
+
+.home-fade-up-delay-1 {
+    animation-delay: 140ms;
+}
+
+.home-fade-up-delay-2 {
+    animation-delay: 260ms;
+}
+
+.home-fade-up-delay-3 {
+    animation-delay: 360ms;
+}
+
+@media (max-width: 640px) {
+    .home-hero-title {
+        font-size: 2.2rem;
+    }
+}

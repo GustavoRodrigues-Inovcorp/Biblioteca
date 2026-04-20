@@ -4,14 +4,21 @@ use App\Http\Controllers\Admin\LivroController as AdminLivroController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\EncomendaController as AdminEncomendaController;
 use App\Http\Controllers\Admin\GoogleBooksController;
+use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\LivroPublicoController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\CarrinhoController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Controllers\AutorPublicoController;
+use App\Http\Controllers\EditoraPublicoController;
 use App\Models\Autor;
 use App\Models\Editora;
 use App\Models\Livro;
+use App\Models\Requisicao;
+use App\Models\Encomenda;
+use App\Models\Review;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -33,9 +40,13 @@ Route::get('/autores', function () {
     return view('cidadao.autores.index');
 })->name('autores.index');
 
+Route::get('/autores/{autor}', [AutorPublicoController::class, 'show'])->name('autores.show');
+
 Route::get('/editoras', function () {
     return view('cidadao.editoras.index');
 })->name('editoras.index');
+
+Route::get('/editoras/{editora}', [EditoraPublicoController::class, 'show'])->name('editoras.show');
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, '__invoke']);
 
@@ -83,11 +94,26 @@ Route::middleware([
     })->name('index');
 
     Route::get('/dashboard', function () {
+        $totalEncomendas = Encomenda::query()->count();
+        $encomendasPagas = Encomenda::query()->where('payment_status', 'paga')->count();
+
         return view('admin.dashboard', [
             'totalLivros' => Livro::count(),
             'totalAutores' => Autor::count(),
             'totalEditoras' => Editora::count(),
             'totalAdmins' => User::query()->where('role', User::ROLE_ADMIN)->count(),
+            'requisicoesAtivas' => Requisicao::query()->whereNull('devolvido_em')->count(),
+            'devolucoesPendentes' => Requisicao::query()->where('estado_devolucao', 'pendente')->count(),
+            'encomendasPendentes' => Encomenda::query()->where('payment_status', 'pendente')->count(),
+            'encomendasPagas' => $encomendasPagas,
+            'totalEncomendas' => $totalEncomendas,
+            'taxaPagamentos' => $totalEncomendas > 0 ? (int) round(($encomendasPagas / $totalEncomendas) * 100) : 0,
+            'reviewsSuspensas' => Review::query()->whereIn('estado', ['suspenso', 'requisitado'])->count(),
+            'recentLogs' => ActivityLog::query()
+                ->with('user:id,name')
+                ->orderByDesc('created_at')
+                ->limit(4)
+                ->get(),
         ]);
     })->name('dashboard');
 
@@ -127,4 +153,7 @@ Route::middleware([
     Route::get('/reviews', function () {
         return view('admin.reviews.index');
     })->name('reviews');
+
+    // Rotas para logs da aplicação
+    Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
 });

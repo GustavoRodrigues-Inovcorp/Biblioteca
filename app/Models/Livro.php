@@ -44,10 +44,12 @@ class Livro extends Model
         'bibliografia',
         'imagem_capa',
         'preco',
+        'stock',
     ];
 
     protected $casts = [
         'preco' => 'decimal:2',
+        'stock' => 'integer',
     ];
 
     /**

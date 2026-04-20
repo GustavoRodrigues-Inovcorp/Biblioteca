@@ -40,6 +40,13 @@ class RequisicaoController extends Controller
         ]);
 
         $livroId = (int) $data['livro_id'];
+        $livro = Livro::query()->findOrFail($livroId);
+
+        if ((int) $livro->stock <= 0) {
+            return back()->withErrors([
+                'livro_id' => 'Este livro não tem stock disponível para requisição.',
+            ])->withInput();
+        }
 
         $ocupado = Requisicao::query()
             ->where('livro_id', $livroId)

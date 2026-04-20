@@ -26,44 +26,79 @@
 			<aside class="fixed inset-y-0 left-0 z-10 bg-gray-900 text-gray-100 border-r border-gray-800/70 transform transition-transform duration-200 lg:translate-x-0 flex flex-col w-72 pt-20">
 			<div class="flex flex-col h-full">
 					@php
-						$menuItems = [
+						$menuSections = [
 							[
-								'label' => 'Dashboard',
-								'href' => route('admin.dashboard'),
-								'active' => request()->routeIs('admin.dashboard'),
+								'title' => null,
+								'items' => [
+									[
+										'label' => 'Dashboard',
+										'href' => route('admin.dashboard'),
+										'active' => request()->routeIs('admin.dashboard'),
+									],
+								],
 							],
 							[
-								'label' => 'Requisições',
-								'href' => route('admin.requisicoes'),
-								'active' => request()->routeIs('admin.requisicoes'),
+								'title' => 'Operação',
+								'items' => [
+									[
+										'label' => 'Requisições',
+										'href' => route('admin.requisicoes'),
+										'active' => request()->routeIs('admin.requisicoes'),
+									],
+									[
+										'label' => 'Encomendas',
+										'href' => route('admin.encomendas.index'),
+										'active' => request()->routeIs('admin.encomendas.*'),
+									],
+								],
 							],
 							[
-								'label' => 'Encomendas',
-								'href' => route('admin.encomendas.index'),
-								'active' => request()->routeIs('admin.encomendas.*'),
+								'title' => 'Conteúdo',
+								'items' => [
+									[
+										'label' => 'Livros',
+										'href' => route('admin.livros'),
+										'active' => request()->routeIs('admin.livros'),
+									],
+									[
+										'label' => 'Reviews',
+										'href' => route('admin.reviews'),
+										'active' => request()->routeIs('admin.reviews'),
+									],
+								],
 							],
 							[
-								'label' => 'Livros',
-								'href' => route('admin.livros'),
-								'active' => request()->routeIs('admin.livros'),
-							],
-							[
-								'label' => 'Reviews',
-								'href' => route('admin.reviews'),
-								'active' => request()->routeIs('admin.reviews'),
-							],
-							[
-								'label' => 'Administradores',
-								'href' => route('admin.admin-users.index'),
-								'active' => request()->routeIs('admin.admin-users.*'),
+								'title' => 'Sistema',
+								'items' => [
+									[
+										'label' => 'Logs',
+										'href' => route('admin.logs.index'),
+										'active' => request()->routeIs('admin.logs.*'),
+									],
+									[
+										'label' => 'Administradores',
+										'href' => route('admin.admin-users.index'),
+										'active' => request()->routeIs('admin.admin-users.*'),
+									],
+								],
 							],
 						];
 					@endphp
-					<nav class="flex-1 overflow-y-auto p-4 space-y-1 text-sm">
-						@foreach ($menuItems as $item)
-							<x-admin.sidebar-link :href="$item['href']" :active="$item['active']">
-								{{ $item['label'] }}
-							</x-admin.sidebar-link>
+					<nav class="flex-1 overflow-y-auto p-4 text-sm">
+						@foreach ($menuSections as $section)
+							<div class="mb-6">
+								@if ($section['title'])
+									<p class="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">{{ $section['title'] }}</p>
+								@endif
+
+								<div class="space-y-1">
+									@foreach ($section['items'] as $item)
+										<x-admin.sidebar-link :href="$item['href']" :active="$item['active']">
+											{{ $item['label'] }}
+										</x-admin.sidebar-link>
+									@endforeach
+								</div>
+							</div>
 						@endforeach
 					</nav>
 					<x-admin.sidebar-footer />
@@ -77,7 +112,7 @@
 							<x-application-mark class="block h-9 w-auto" />
 							<div>
 								<p class="text-xs uppercase tracking-[0.18em] text-gray-400 leading-none">Painel</p>
-								<p class="text-base font-semibold text-gray-900 leading-tight">Biblioteca</p>
+                				<p class="hidden text-sm font-bold font-serif uppercase tracking-wide text-slate-900 lg:block">INOVBOOKS</p>
 							</div>
 						</div>
 						<div class="flex items-center gap-3">

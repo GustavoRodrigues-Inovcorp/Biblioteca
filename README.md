@@ -92,6 +92,45 @@ Nota: os ficheiros gerados em public/build não devem ser versionados no Git (j�
 php artisan test
 ```
 
+### Testes Pest de Requisições (Feature)
+
+Executar apenas os testes de requisições:
+
+```bash
+php artisan test tests/Feature/RequisicaoTest.php
+```
+
+Executar cenários individuais (filtro por nome do teste):
+
+```bash
+php artisan test --filter "utilizador pode criar requisicao de livro"
+php artisan test --filter "requisicao nao pode ser criada sem livro valido"
+php artisan test --filter "utilizador pode devolver livro de requisicao ativa"
+php artisan test --filter "utilizador ve apenas as suas requisicoes"
+php artisan test --filter "nao e possivel requisitar livro sem stock disponivel"
+```
+
+### Tabela de Logs (Admin)
+
+- Autenticar como administrador.
+- Abrir o menu de logs no painel admin.
+- Confirmar que as ações relevantes (ex.: criação/devolução de requisições) ficam registadas.
+
+Sugestão para apresentação: correr os testes no terminal e, de seguida, mostrar a tabela de logs no browser para evidenciar rastreabilidade.
+
+## Atualizar no GitHub
+
+Fluxo recomendado no PowerShell:
+
+```powershell
+git status
+git add .
+git commit -m "feat: testes Pest de requisicoes e logs admin"
+git push origin main
+```
+
+Se estiveres a trabalhar noutra branch, substitui `main` pelo nome dessa branch.
+
 ## Fluxo para nova máquina
 
 Depois de clonar o projeto:

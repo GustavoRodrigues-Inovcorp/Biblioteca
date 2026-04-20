@@ -1,141 +1,61 @@
-<div class="flex gap-6 items-start">
-    {{--
-        Sidebar de filtros reutilizável.
-        - sortOptions: opções de ordenação por nome (recente, A-Z, Z-A)
-    --}}
-
-    @include('livewire.components.filters-sidebar', [
-        'sortOptions' => [
-            [
-                'preset' => 'recente',
-                'label' => 'Recente',
-                'isActive' => fn($dir) => $dir === 'normal',
+<div>
+    <div class="flex items-start gap-6">
+        @include('livewire.components.filters-sidebar', [
+            'sortOptions' => [
+                [
+                    'preset' => 'recente',
+                    'label' => 'Recente',
+                    'isActive' => fn ($dir) => $dir === 'normal',
+                ],
+                [
+                    'preset' => 'az',
+                    'label' => 'A-Z',
+                    'isActive' => fn ($dir) => $dir === 'asc',
+                ],
+                [
+                    'preset' => 'za',
+                    'label' => 'Z-A',
+                    'isActive' => fn ($dir) => $dir === 'desc',
+                ],
             ],
-            [
-                'preset' => 'az',
-                'label' => 'A-Z',
-                'isActive' => fn($dir) => $dir === 'asc',
-            ],
-            [
-                'preset' => 'za',
-                'label' => 'Z-A',
-                'isActive' => fn($dir) => $dir === 'desc',
-            ],
-        ],
-        'currentSortDirection' => $sortDirection,
-    ])
-
-    <div class="flex-1 min-w-0">
-
-    <div class="mb-4">
-        @include('livewire.components.search-bar', [
-            // A pesquisa filtra editoras pelo nome.
-            'placeholder' => 'Pesquisar por Nome...',
+            'currentSortDirection' => $sortDirection,
+            'showTitle' => true,
         ])
-    </div>
 
-    {{-- Tabela principal de editoras. --}}
-    <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
-            <thead>
-                <tr class="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-                    <th class="px-4 py-3 bg-slate-50 text-slate-500">Logótipo</th>
-                    <th class="px-4 py-3 bg-slate-50 text-slate-500">
-                        <button wire:click="sortBy" type="button" class="flex items-center gap-1 uppercase tracking-wider text-slate-500 text-xs font-Semibold focus:outline-none focus:ring-0 hover:text-blue-600">
-                            Nome
-                            @if ($sortDirection === 'asc')
-                                <span class="text-xs">↑</span>
-                            @elseif($sortDirection === 'desc')
-                                <span class="text-xs">↓</span>
-                            @endif
-                        </button>
-                    </th>
-                    <th class="px-4 py-3 bg-slate-50 text-slate-500">Livros</th>
-                    <th class="px-4 py-3 bg-slate-50 text-slate-500"></th>
-                </tr>
-            </thead>
-
-            <tbody class="text-black">
-                @php
-                    // A tabela tem 3 colunas fixas: logótipo, nome e livros.
-                    $colspan = 3;
-
-                    // Preserva o estado atual da listagem para o botão "Voltar"
-                    // ao navegar para a página de livros de uma editora.
-                    $editorasReturnQuery = array_filter([
-                        'page' => $editoras->currentPage() > 1 ? $editoras->currentPage() : null,
-                        'search' => $search !== '' ? $search : null,
-                        'sortDirection' => $sortDirection !== 'normal' ? $sortDirection : null,
-                    ], fn($value) => $value !== null && $value !== '');
-                @endphp
-
+        <div class="min-w-0 flex-1">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
                 @forelse ($editoras as $editora)
-                    <tr id="editora-{{ $editora->id }}" class="align-middle border-b">
-                        <td class="px-4 py-3 align-middle">
-                            <div class="avatar flex items-center">
-                                <div class="h-20 w-20 overflow-hidden rounded-lg shadow-sm ring-1 ring-black/5">
-                                    @if ($editora->logotipo)
-                                        <img src="{{ str_starts_with($editora->logotipo, 'http') ? $editora->logotipo : asset('storage/' . $editora->logotipo) }}"
-                                            alt="Logótipo de {{ $editora->nome }}"
-                                            class="h-full w-full object-contain" />
-                                    @else
-                                        <div class="flex h-full w-full flex-col items-center justify-center bg-gray-400 text-center text-[10px] font-medium leading-tight text-white">
-                                            <span>Sem logótipo</span>
-                                        </div>
-                                    @endif
+                    <a id="editora-{{ $editora->id }}" href="{{ route('editoras.show', $editora) }}"
+                        onclick="sessionStorage.setItem('biblioteca:return-scroll', JSON.stringify({ path: window.location.pathname + window.location.search, y: window.scrollY }))"
+                        class="group block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                        <div class="aspect-[4/3] w-full overflow-hidden bg-white">
+                            @if ($editora->logotipo)
+                                <img src="{{ str_starts_with($editora->logotipo, 'http') ? $editora->logotipo : asset('storage/' . $editora->logotipo) }}" alt="Logótipo de {{ $editora->nome }}" class="h-full w-full object-contain transition duration-200 group-hover:scale-[1.02]" />
+                            @else
+                                <div class="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-5xl font-semibold text-slate-500">
+                                    {{ mb_strtoupper(mb_substr($editora->nome, 0, 1)) }}
                                 </div>
-                            </div>
-                        </td>
-                        <td class="min-w-64 px-4 py-3 align-middle">
-                            <div class="font-semibold flex items-center">{{ $editora->nome }}</div>
-                        </td>
-                        <td class="min-w-96 px-4 py-3 align-middle">
-                            <div class="flex flex-wrap gap-2 items-center">
-                                @forelse ($editora->livros->take(5) as $livro)
-                                    <div class="h-24 w-16 overflow-hidden rounded-sm bg-gray-100 shadow-sm ring-1 ring-black/5 flex items-center justify-center">
-                                        @if ($livro->imagem_capa)
-                                            <img src="{{ str_starts_with($livro->imagem_capa, 'http') ? $livro->imagem_capa : asset('storage/' . $livro->imagem_capa) }}" alt="Capa de {{ $livro->nome }}" class="h-full w-full object-cover" />
-                                        @else
-                                            <div class="flex h-full w-full items-center justify-center text-[10px] text-gray-400">N/A</div>
-                                        @endif
-                                    </div>
-                                @empty
-                                    <span class="text-sm text-gray-400">Sem livros</span>
-                                @endforelse
-                                @if ($editora->livros_count > 5)
-                                    <span class="badge badge-outline badge-sm bg-gray-100">+{{ $editora->livros_count - 5 }}</span>
-                                @endif
-                            </div>
-                        </td>
-                        <td class="whitespace-nowrap text-right px-4 py-3 align-middle">
-                            <a href="{{ route('livros.index', ['search' => $editora->nome, 'return_to' => route('editoras.index', $editorasReturnQuery) . '#editora-' . $editora->id]) }}"
-                                onclick="sessionStorage.setItem('biblioteca:return-scroll', JSON.stringify({ path: window.location.pathname + window.location.search, y: window.scrollY }))"
-                                class="inline-flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                                title="Ver livros de {{ $editora->nome }}"
-                                aria-label="Ver livros de {{ $editora->nome }}">
-                                Ver
-                            </a>
-                        </td>
-                    </tr>
-                    </tr>
+                            @endif
+                        </div>
+
+                        <div class="p-4">
+                            <h3 class="line-clamp-2 text-lg font-semibold text-slate-900">{{ $editora->nome }}</h3>
+                            <p class="mt-1 text-sm text-slate-500">{{ $editora->livros_count }} {{ $editora->livros_count === 1 ? 'livro' : 'livros' }}</p>
+                        </div>
+                    </a>
                 @empty
-                    <tr>
-                        {{-- Mensagem apresentada quando a pesquisa não devolve editoras. --}}
-                        <td colspan="{{ $colspan }}" class="text-center py-8 text-gray-500">
-                            Nenhuma editora encontrada.
-                        </td>
-                    </tr>
+                    <div class="col-span-full rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500 shadow-sm">
+                        Nenhuma editora encontrada.
+                    </div>
                 @endforelse
-            </tbody>
-        </table>
+            </div>
+
+            <div class="mt-6">
+                {{ $editoras->links() }}
+            </div>
+        </div>
     </div>
 
-    {{-- Paginação --}}
-    <div class="mt-6">
-        {{ $editoras->links() }}
-    </div>
-    </div>{{-- /main content --}}
-</div>{{-- /flex wrapper --}}
+    <x-scroll-restore storage-key="biblioteca:return-scroll" />
+</div>
 
-{{-- Script para restaurar a posição exata do scroll ao voltar desta página. --}}
-<x-scroll-restore storage-key="biblioteca:return-scroll" />

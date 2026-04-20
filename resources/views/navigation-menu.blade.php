@@ -1,6 +1,11 @@
 <nav x-data="{ open: false }" class="sticky top-0 z-50 border-b border-slate-200 bg-white bg-opacity-90 backdrop-blur-sm">
     @php
         $totalCarrinho = collect(session('carrinho', []))->sum(fn ($qtd) => (int) $qtd);
+        $isAutoresContext = request()->routeIs('autores.*');
+        $isEditorasContext = request()->routeIs('editoras.*');
+        $navSearchAction = $isAutoresContext ? route('autores.index') : ($isEditorasContext ? route('editoras.index') : route('livros.index'));
+        $navSearchLabel = $isAutoresContext ? 'Pesquisar autores' : ($isEditorasContext ? 'Pesquisar editoras' : 'Pesquisar livros');
+        $navSearchPlaceholder = $isAutoresContext ? 'Pesquisar autor...' : ($isEditorasContext ? 'Pesquisar editora...' : 'Pesquisar livros...');
     @endphp
 
     <div class="border-b border-blue-900 bg-blue-800 text-white">
@@ -19,10 +24,10 @@
                 <span class="hidden text-xl font-bold font-serif uppercase tracking-wide text-slate-900 lg:block">INOVBOOKS</span>
             </a>
 
-            <form method="GET" action="{{ route('livros.index') }}" class="hidden w-full max-w-2xl md:mx-4 md:block lg:mx-8">
-                <label for="nav-search" class="sr-only">Pesquisar livros</label>
+            <form method="GET" action="{{ $navSearchAction }}" class="hidden w-full max-w-2xl md:mx-4 md:block lg:mx-8">
+                <label for="nav-search" class="sr-only">{{ $navSearchLabel }}</label>
                 <div class="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-slate-50 focus-within:border-blue-800 focus-within:ring-2 focus-within:ring-blue-200 transition">
-                    <input id="nav-search" name="search" type="text" value="{{ request('search', request('q')) }}" placeholder="Pesquisar..."
+                    <input id="nav-search" name="search" type="text" value="{{ request('search', request('q')) }}" placeholder="{{ $navSearchPlaceholder }}"
                         class="h-9 w-full border-none bg-transparent px-4 text-sm text-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-0">
                     <button type="submit" class="inline-flex h-9 items-center justify-center bg-blue-800 px-4 text-white hover:bg-blue-900 transition" aria-label="Pesquisar">
                         <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
@@ -48,6 +53,14 @@
                                     {{ $totalCarrinho }}
                                 </span>
                             @endif
+                        </a>
+                    @endif
+
+                    @if (auth()->user()->isAdmin())
+                        <a href="{{ route('admin.logs.index') }}"
+                            class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:text-blue-800 {{ request()->routeIs('admin.logs.*') ? 'border-blue-300 bg-blue-50 text-blue-800 ring-1 ring-blue-200' : '' }}"
+                            title="Logs">
+                            Logs
                         </a>
                     @endif
 
@@ -156,10 +169,10 @@
 
     <div :class="{'block': open, 'hidden': ! open}" class="hidden border-t border-slate-200 bg-slate-50 md:hidden">
         <div class="space-y-2 px-4 pb-4 pt-3">
-            <form method="GET" action="{{ route('livros.index') }}">
-                <label for="nav-search-mobile" class="sr-only">Pesquisar livros</label>
+            <form method="GET" action="{{ $navSearchAction }}">
+                <label for="nav-search-mobile" class="sr-only">{{ $navSearchLabel }}</label>
                 <div class="flex items-center overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-blue-800 focus-within:ring-2 focus-within:ring-blue-200 transition">
-                    <input id="nav-search-mobile" name="search" type="text" value="{{ request('search', request('q')) }}" placeholder="Pesquisar livros..."
+                    <input id="nav-search-mobile" name="search" type="text" value="{{ request('search', request('q')) }}" placeholder="{{ $navSearchPlaceholder }}"
                         class="h-10 w-full border-none bg-transparent px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-0">
                     <button type="submit" class="inline-flex h-10 items-center justify-center bg-blue-800 px-3 text-white hover:bg-blue-900 transition" aria-label="Pesquisar">
                         <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
@@ -196,14 +209,20 @@
                     </x-responsive-nav-link>
                 @endif
 
+                @if (auth()->user()->isAdmin())
+                    <x-responsive-nav-link href="{{ route('admin.logs.index') }}" :active="request()->routeIs('admin.logs.*')">
+                        Logs
+                    </x-responsive-nav-link>
+                @endif
+
                 <x-responsive-nav-link href="{{ route('requisicoes.index') }}" :active="request()->routeIs('requisicoes.index')">
-                    Requisicoes
+                    Requisições
                 </x-responsive-nav-link>
 
                 <form method="POST" action="{{ route('logout') }}" x-data>
                     @csrf
                     <x-responsive-nav-link href="{{ route('logout') }}" @click.prevent="$root.submit();">
-                        Terminar sessao
+                        Terminar sessão
                     </x-responsive-nav-link>
                 </form>
             @endauth
