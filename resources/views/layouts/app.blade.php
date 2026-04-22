@@ -42,8 +42,9 @@
             </main>
         </div>
 
-        @include('components.site-footer')
-
+        @if (!request()->routeIs('chat.*'))
+            @include('components.site-footer')
+        @endif
         @stack('modals')
 
         @livewireScripts

@@ -56,6 +56,10 @@ Route::middleware([
     'verified',
     'role:admin,cidadao',
 ])->group(function (): void {
+    Route::get('/chat', function () {
+        return view('chat.index');
+    })->name('chat.index');
+
     Route::get('/requisicoes', [RequisicaoController::class, 'index'])->name('requisicoes.index');
     Route::post('/requisicoes', [RequisicaoController::class, 'store'])->name('requisicoes.store');
     Route::patch('/requisicoes/{requisicao}/devolver', [RequisicaoController::class, 'devolver'])->name('requisicoes.devolver');

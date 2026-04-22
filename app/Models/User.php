@@ -35,6 +35,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'estado',
         'delivery_nome',
         'delivery_morada',
         'delivery_codigo_postal',
@@ -146,5 +147,21 @@ class User extends Authenticatable
     public function alertasLivro()
     {
         return $this->hasMany(\App\Models\AlertaLivro::class);
+    }
+
+    public function chatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class);
+    }
+
+    public function chatConversations(): HasMany
+    {
+        return $this->hasMany(ChatConversation::class, 'created_by_id');
+    }
+
+    public function conversations()
+    {
+        return $this->belongsToMany(ChatConversation::class, 'chat_conversation_user')
+            ->withTimestamps();
     }
 }

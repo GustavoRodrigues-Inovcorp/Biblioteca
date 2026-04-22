@@ -41,6 +41,11 @@
 								'title' => 'Operação',
 								'items' => [
 									[
+										'label' => 'Chat',
+										'href' => route('chat.index'),
+										'active' => request()->routeIs('chat.*'),
+									],
+									[
 										'label' => 'Requisições',
 										'href' => route('admin.requisicoes'),
 										'active' => request()->routeIs('admin.requisicoes'),

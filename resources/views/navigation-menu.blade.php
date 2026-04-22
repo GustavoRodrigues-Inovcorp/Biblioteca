@@ -1,5 +1,6 @@
 <nav x-data="{ open: false }" class="sticky top-0 z-50 border-b border-slate-200 bg-white bg-opacity-90 backdrop-blur-sm">
     @php
+        $isChatContext = request()->routeIs('chat.*');
         $totalCarrinho = collect(session('carrinho', []))->sum(fn ($qtd) => (int) $qtd);
         $isAutoresContext = request()->routeIs('autores.*');
         $isEditorasContext = request()->routeIs('editoras.*');
@@ -7,6 +8,29 @@
         $navSearchLabel = $isAutoresContext ? 'Pesquisar autores' : ($isEditorasContext ? 'Pesquisar editoras' : 'Pesquisar livros');
         $navSearchPlaceholder = $isAutoresContext ? 'Pesquisar autor...' : ($isEditorasContext ? 'Pesquisar editora...' : 'Pesquisar livros...');
     @endphp
+
+    @if ($isChatContext)
+        <div class="bg-blue-800 text-white shadow-sm">
+            <div class="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+                <a href="{{ route('home') }}" class="inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40" aria-label="Voltar">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="h-7 w-7" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m15 19-7-7 7-7" />
+                    </svg>
+                </a>
+
+                <div class="flex flex-1 items-center justify-center px-3">
+                    <span class="text-2xl font-bold uppercase">INOVBOOKS</span>
+                </div>
+
+                <div class="flex items-center gap-1 text-[11px] font-light">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                        </svg>
+                    <span class="whitespace-nowrap">Conversas</span>
+                </div>
+            </div>
+        </div>
+    @else
 
     <div class="border-b border-blue-900 bg-blue-800 text-white">
         <div class="mx-auto flex max-w-7xl items-center align-center justify-center px-4 py-0.5 sm:px-6 lg:px-8">
@@ -40,6 +64,14 @@
 
             <div class="ml-auto hidden items-center gap-4 md:flex">
                 @auth
+                    <a href="{{ route('chat.index') }}" :active="request()->routeIs('chat.*')"
+                        class="relative inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 {{ request()->routeIs('carrinho.index') ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200' : '' }}"
+                        title="Conversas">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                        </svg>
+                    </a>
+
                     @if (!auth()->user()->isAdmin())
                         <a href="{{ route('carrinho.index') }}"
                             class="relative inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 {{ request()->routeIs('carrinho.index') ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200' : '' }}"
@@ -197,6 +229,10 @@
             </x-responsive-nav-link>
 
             @auth
+                <x-responsive-nav-link href="{{ route('chat.index') }}" :active="request()->routeIs('chat.*')">
+                    Chat
+                </x-responsive-nav-link>
+
                 <x-responsive-nav-link href="{{ route('profile.show') }}" :active="request()->routeIs('profile.show')">
                     Perfil
                 </x-responsive-nav-link>
@@ -242,4 +278,5 @@
             @endguest
         </div>
     </div>
+    @endif
 </nav>
