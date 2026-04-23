@@ -40,6 +40,7 @@ class ChatConversation extends Model
     public function participants(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'chat_conversation_user')
+            ->withPivot('last_read_at', 'role')
             ->withTimestamps();
     }
 
