@@ -190,3 +190,89 @@ test('nao permite apagar conversa direta de grupo', function () {
         ->call('deleteDirectConversation')
         ->assertForbidden();
 });
+
+test('criador nao pode sair de uma sala', function () {
+    $creator = User::factory()->admin()->create();
+    $member = User::factory()->create();
+
+    $conversation = ChatConversation::query()->create([
+        'type' => ChatConversation::TYPE_ROOM,
+        'name' => 'Sala de Apoio',
+        'created_by_id' => $creator->id,
+    ]);
+
+    $conversation->participants()->sync([
+        $creator->id => ['role' => 'admin'],
+        $member->id => ['role' => 'member'],
+    ]);
+
+    Livewire::actingAs($creator)
+        ->test('chat.chat-page')
+        ->set('selectedConversationId', $conversation->id)
+        ->call('leaveConversation')
+        ->assertForbidden();
+});
+
+test('utilizador pode sair de uma sala sem apagar a conversa', function () {
+    $creator = User::factory()->admin()->create();
+    $member = User::factory()->create();
+
+    $conversation = ChatConversation::query()->create([
+        'type' => ChatConversation::TYPE_ROOM,
+        'name' => 'Sala de Apoio',
+        'created_by_id' => $creator->id,
+    ]);
+
+    $conversation->participants()->sync([
+        $creator->id => ['role' => 'admin'],
+        $member->id => ['role' => 'member'],
+    ]);
+
+    Livewire::actingAs($member)
+        ->test('chat.chat-page')
+        ->set('selectedConversationId', $conversation->id)
+        ->call('leaveConversation')
+        ->assertStatus(200);
+
+    $this->assertDatabaseMissing('chat_conversation_user', [
+        'chat_conversation_id' => $conversation->id,
+        'user_id' => $member->id,
+    ]);
+
+    $this->assertDatabaseHas('chat_conversations', [
+        'id' => $conversation->id,
+    ]);
+});
+
+test('criador pode apagar um grupo', function () {
+    $creator = User::factory()->create();
+    $memberA = User::factory()->create();
+    $memberB = User::factory()->create();
+
+    $conversation = ChatConversation::query()->create([
+        'type' => ChatConversation::TYPE_DIRECT,
+        'name' => 'Grupo de Remoção',
+        'created_by_id' => $creator->id,
+    ]);
+
+    $conversation->participants()->sync([
+        $creator->id => ['role' => 'admin'],
+        $memberA->id => ['role' => 'admin'],
+        $memberB->id => ['role' => 'member'],
+    ]);
+
+    Livewire::actingAs($creator)
+        ->test('chat.chat-page')
+        ->set('selectedConversationId', $conversation->id)
+        ->call('deleteManagedConversation')
+        ->assertStatus(200);
+
+    $this->assertDatabaseMissing('chat_conversation_user', [
+        'chat_conversation_id' => $conversation->id,
+        'user_id' => $creator->id,
+    ]);
+
+    $this->assertDatabaseMissing('chat_conversations', [
+        'id' => $conversation->id,
+    ]);
+});

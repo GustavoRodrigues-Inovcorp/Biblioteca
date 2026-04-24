@@ -7,7 +7,9 @@ use App\Models\ChatMessage;
 use App\Models\ChatMessageReaction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -43,8 +45,6 @@ class ChatPage extends Component
     /** @var array<int> */
     public array $roomParticipantIds = [];
 
-    public string $userSearch = '';
-
     /** @var array<int> */
     public array $roomInviteIds = [];
 
@@ -55,7 +55,16 @@ class ChatPage extends Component
 
     public string $directSearch = '';
 
-    public string $notificationMode = 'all';
+    public ?int $unreadBoundaryConversationId = null;
+
+    public ?string $unreadBoundaryAt = null;
+
+    public bool $unreadFromStart = false;
+
+    /** @var array<string, string> */
+    public array $conversationNotificationModes = [];
+    public string $roomTab = 'my-rooms'; // 'my-rooms' ou 'browse'
+    public string $roomSearch = '';
 
     protected $queryString = [
         'selectedConversationId' => ['as' => 'conversation', 'except' => null],
@@ -66,23 +75,45 @@ class ChatPage extends Component
     {
         $this->selectedConversationId = $this->resolveInitialConversationId();
         $this->messageSearchHistory = session()->get($this->messageSearchHistorySessionKey(), []);
-        $this->notificationMode = session()->get($this->notificationModeSessionKey(), 'all');
+
+        $storedNotificationModes = session()->get($this->notificationModeSessionKey(), []);
+
+        if (is_array($storedNotificationModes)) {
+            $this->conversationNotificationModes = collect($storedNotificationModes)
+                ->filter(fn ($mode) => in_array($mode, ['all', 'mentions', 'none'], true))
+                ->mapWithKeys(fn ($mode, $conversationId) => [(string) $conversationId => (string) $mode])
+                ->all();
+        } elseif (is_string($storedNotificationModes)
+            && in_array($storedNotificationModes, ['all', 'mentions', 'none'], true)
+            && $this->selectedConversationId !== null
+        ) {
+            // Compatibilidade com formato antigo (um único modo global).
+            $this->conversationNotificationModes = [
+                (string) $this->selectedConversationId => $storedNotificationModes,
+            ];
+        }
+
+        $this->captureUnreadBoundary($this->selectedConversationId);
     }
 
-    public function updatedMessageSearch(string $value): void
+    public function applyMessageSearch(): void
     {
-        $search = trim($value);
+        $this->isMessageSearchMode = true;
+
+        $search = trim($this->messageSearch);
 
         if ($search === '') {
             return;
         }
 
+        $this->messageSearch = $search;
         $this->recordMessageSearchHistory($search);
     }
 
     public function updatedConversationSearch(): void
     {
         $this->selectedConversationId = $this->resolveInitialConversationId();
+        $this->captureUnreadBoundary($this->selectedConversationId);
     }
 
     public function updatedMessageBody(string $value): void
@@ -102,6 +133,7 @@ class ChatPage extends Component
         $this->clearTypingIndicator();
         $this->ensureParticipant($conversationId);
         $this->selectedConversationId = $conversationId;
+        $this->captureUnreadBoundary($conversationId);
         $this->markConversationAsRead($conversationId);
         $this->messageBody = '';
         $this->messageSearch = '';
@@ -141,8 +173,59 @@ class ChatPage extends Component
     {
         abort_unless(in_array($mode, ['all', 'mentions', 'none'], true), 422);
 
-        $this->notificationMode = $mode;
-        session()->put($this->notificationModeSessionKey(), $mode);
+        if (! $this->selectedConversationId) {
+            return;
+        }
+
+        $this->ensureParticipant($this->selectedConversationId);
+
+        $this->conversationNotificationModes[(string) $this->selectedConversationId] = $mode;
+        session()->put($this->notificationModeSessionKey(), $this->conversationNotificationModes);
+    }
+
+    public function notificationModeForConversation(int $conversationId): string
+    {
+        $mode = $this->conversationNotificationModes[(string) $conversationId] ?? 'all';
+
+        return in_array($mode, ['all', 'mentions', 'none'], true)
+            ? $mode
+            : 'all';
+    }
+
+    public function conversationHasUnreadNotification(ChatConversation $conversation): bool
+    {
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        $notificationMode = $this->notificationModeForConversation($conversation->id);
+
+        if ($notificationMode === 'none') {
+            return false;
+        }
+
+        $participant = $conversation->participants->firstWhere('id', $user->id);
+        $lastReadAt = $participant?->pivot?->last_read_at;
+
+        $unreadMessagesQuery = ChatMessage::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('user_id', '!=', $user->id)
+            ->when($lastReadAt, fn ($query) => $query->where('created_at', '>', $lastReadAt));
+
+        if (! $unreadMessagesQuery->exists()) {
+            return false;
+        }
+
+        if ($notificationMode === 'all') {
+            return true;
+        }
+
+        return $unreadMessagesQuery
+            ->orderBy('created_at')
+            ->get(['id', 'conversation_id', 'user_id', 'body', 'created_at'])
+            ->contains(fn (ChatMessage $message) => $this->messageShouldNotifyMentions($message, $user));
     }
 
     public function toggleRoomForm(): void
@@ -295,6 +378,7 @@ class ChatPage extends Component
     public function sendMessage(): void
     {
         if ($this->isMessageSearchMode) {
+            $this->applyMessageSearch();
             return;
         }
 
@@ -428,13 +512,11 @@ class ChatPage extends Component
             $messagePreview = '[Mensagem]';
         }
 
-        $quotedText = '> ' . $authorName . ': ' . $messagePreview;
-
         $this->isMessageSearchMode = false;
         $this->replyingToMessageId = $message->id;
     }
 
-    public function inviteSelectedUsers(): void
+    public function deleteMessage(int $messageId): void
     {
         $user = auth()->user();
         abort_unless($user instanceof User, 403);
@@ -445,7 +527,54 @@ class ChatPage extends Component
             return;
         }
 
+        $message = ChatMessage::query()
+            ->whereKey($messageId)
+            ->where('conversation_id', $conversation->id)
+            ->first();
+
+        if (! $message) {
+            return;
+        }
+
+        $canDeleteOwnMessage = (int) $message->user_id === (int) $user->id;
+        $canDeleteAnyRoomMessage = $conversation->isRoom()
+            && (int) $conversation->created_by_id === (int) $user->id;
+
+        abort_unless($canDeleteOwnMessage || $canDeleteAnyRoomMessage, 403);
+
+        if ((int) $this->replyingToMessageId === (int) $message->id) {
+            $this->replyingToMessageId = null;
+        }
+
+        ChatMessage::query()
+            ->where('replied_to_message_id', $message->id)
+            ->update(['replied_to_message_id' => null]);
+
+        ChatMessageReaction::query()
+            ->where('chat_message_id', $message->id)
+            ->delete();
+
+        if (is_string($message->attachment_path) && $message->attachment_path !== '') {
+            Storage::disk('public')->delete($message->attachment_path);
+        }
+
+        $message->delete();
+
+        $conversation->forceFill([
+            'last_message_at' => $conversation->messages()->max('created_at'),
+        ])->save();
+    }
+
+    public function inviteSelectedUsers(): void
+    {
+        $user = auth()->user();
+        abort_unless($user instanceof User, 403);
+
+        $conversation = $this->currentConversation();
+        if (! $conversation) return;
+
         abort_unless($this->canManageConversation($conversation, $user), 403);
+        abort_unless($conversation->isRoom(), 422);
 
         $validated = $this->validate([
             'roomInviteIds' => ['array'],
@@ -453,19 +582,70 @@ class ChatPage extends Component
         ]);
 
         $existingIds = $conversation->participants()->pluck('users.id')->all();
-        $newIds = array_values(array_diff(array_unique(array_map('intval', $validated['roomInviteIds'] ?? [])), $existingIds));
+        $newIds = array_values(array_diff(
+            array_unique(array_map('intval', $validated['roomInviteIds'] ?? [])),
+            $existingIds
+        ));
 
-        if ($newIds !== []) {
-            $conversation->participants()->syncWithoutDetaching(
-                collect($newIds)
-                    ->mapWithKeys(fn (int $participantId) => [
-                        $participantId => ['role' => 'member'],
-                    ])
-                    ->all()
+        foreach ($newIds as $inviteeId) {
+            \App\Models\ChatRoomInvitation::query()->updateOrCreate(
+                ['conversation_id' => $conversation->id, 'user_id' => $inviteeId],
+                ['invited_by_id' => $user->id, 'status' => 'pending']
             );
         }
 
         $this->roomInviteIds = [];
+    }
+
+    public function acceptInvitation(int $invitationId): void
+    {
+        $user = auth()->user();
+        abort_unless($user instanceof User, 403);
+
+        $invitation = \App\Models\ChatRoomInvitation::query()
+            ->whereKey($invitationId)
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->with('conversation')
+            ->firstOrFail();
+
+        $invitation->update(['status' => 'accepted']);
+
+        $invitation->conversation->participants()->syncWithoutDetaching([
+            $user->id => ['role' => 'member'],
+        ]);
+
+        $this->selectConversation($invitation->conversation_id);
+    }
+
+    public function declineInvitation(int $invitationId): void
+    {
+        $user = auth()->user();
+        abort_unless($user instanceof User, 403);
+
+        \App\Models\ChatRoomInvitation::query()
+            ->whereKey($invitationId)
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'declined']);
+    }
+
+    public function getPendingInvitationsProperty(): \Illuminate\Database\Eloquent\Collection
+    {
+        $user = auth()->user();
+        if (! $user instanceof User) {
+            return new \Illuminate\Database\Eloquent\Collection();
+        }
+
+        return \App\Models\ChatRoomInvitation::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->with([
+                'conversation:id,name,avatar',
+                'invitedBy:id,name,profile_photo_path',
+            ])
+            ->orderByDesc('created_at')
+            ->get();
     }
 
     public function promoteConversationParticipant(int $userId): void
@@ -508,9 +688,95 @@ class ChatPage extends Component
         $conversation->participants()->detach($userId);
     }
 
-    public function removeRoomParticipant(int $userId): void
+    public function leaveConversation(): void
     {
-        $this->removeConversationParticipant($userId);
+        $currentUser = auth()->user();
+        abort_unless($currentUser instanceof User, 403);
+
+        $conversation = $this->currentConversation();
+
+        if (! $conversation) {
+            return;
+        }
+
+        abort_unless((int) $conversation->created_by_id !== (int) $currentUser->id, 403);
+
+        $isMultiParticipantConversation = $conversation->isRoom() || $conversation->participants()->count() > 2;
+        abort_unless($isMultiParticipantConversation, 403);
+
+        DB::transaction(function () use ($conversation, $currentUser): void {
+            $conversation->loadMissing('participants:id,name,estado,profile_photo_path');
+
+            $remainingParticipants = $conversation->participants
+                ->reject(fn ($participant) => (int) $participant->id === (int) $currentUser->id)
+                ->values();
+
+            if ($remainingParticipants->isEmpty()) {
+                $conversation->delete();
+                return;
+            }
+
+            if ((int) $conversation->created_by_id === (int) $currentUser->id) {
+                $newCreator = $remainingParticipants->first(fn ($participant) => (string) ($participant->pivot?->role ?? '') === 'admin')
+                    ?? $remainingParticipants->first();
+
+                if ($newCreator) {
+                    $conversation->participants()->updateExistingPivot($newCreator->id, ['role' => 'admin']);
+                    $conversation->forceFill(['created_by_id' => $newCreator->id])->save();
+                }
+            }
+
+            $conversation->participants()->detach($currentUser->id);
+        });
+
+        $this->clearTypingIndicator();
+
+        if ((int) $this->selectedConversationId === (int) $conversation->id) {
+            $this->selectedConversationId = $this->resolveInitialConversationId();
+            $this->captureUnreadBoundary($this->selectedConversationId);
+        }
+
+        $this->messageBody = '';
+        $this->messageSearch = '';
+        $this->isMessageSearchMode = false;
+        $this->messageAttachment = null;
+        $this->replyingToMessageId = null;
+        $this->roomInviteIds = [];
+        $this->resetValidation();
+    }
+
+    public function deleteManagedConversation(): void
+    {
+        $currentUser = auth()->user();
+        abort_unless($currentUser instanceof User, 403);
+
+        $conversation = $this->currentConversation();
+
+        if (! $conversation) {
+            return;
+        }
+
+        $isManagedConversation = $conversation->isRoom() || $conversation->participants()->count() > 2;
+        abort_unless($isManagedConversation, 403);
+        abort_unless((int) $conversation->created_by_id === (int) $currentUser->id, 403);
+
+        $deletedConversationId = $conversation->id;
+
+        $this->clearTypingIndicator();
+        $conversation->delete();
+
+        if ((int) $this->selectedConversationId === (int) $deletedConversationId) {
+            $this->selectedConversationId = $this->resolveInitialConversationId();
+            $this->captureUnreadBoundary($this->selectedConversationId);
+        }
+
+        $this->messageBody = '';
+        $this->messageSearch = '';
+        $this->isMessageSearchMode = false;
+        $this->messageAttachment = null;
+        $this->replyingToMessageId = null;
+        $this->roomInviteIds = [];
+        $this->resetValidation();
     }
 
     public function deleteDirectConversation(): void
@@ -609,15 +875,6 @@ class ChatPage extends Component
             ->whereKeyNot($currentUser->id)
             ->orderBy('name');
 
-        if (trim($this->userSearch) !== '') {
-            $search = trim($this->userSearch);
-            $query->where(function ($subQuery) use ($search): void {
-                $subQuery->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('estado', 'like', "%{$search}%");
-            });
-        }
-
         return $query->get(['id', 'name', 'email', 'estado', 'profile_photo_path', 'role']);
     }
 
@@ -652,17 +909,66 @@ class ChatPage extends Component
             ->values();
     }
 
+    public function setRoomTab(string $tab): void
+    {
+        abort_unless(in_array($tab, ['my-rooms', 'browse'], true), 422);
+        $this->roomTab = $tab;
+        $this->roomSearch = '';
+    }
+
+    public function getBrowseRoomsProperty(): EloquentCollection
+    {
+        $user = auth()->user();
+        if (! $user instanceof User) {
+            return new EloquentCollection();
+        }
+        $search = trim($this->roomSearch);
+        return ChatConversation::query()
+            ->where('type', ChatConversation::TYPE_ROOM)
+            ->whereDoesntHave('participants', fn ($query) => $query->where('users.id', $user->id))
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
+            ->withCount('participants')
+            ->orderBy('name')
+            ->limit(10)
+            ->get();
+    }
+
+    public function joinRoom(int $roomId): void
+    {
+        $user = auth()->user();
+        abort_unless($user instanceof User, 403);
+        $room = ChatConversation::query()
+            ->whereKey($roomId)
+            ->where('type', ChatConversation::TYPE_ROOM)
+            ->whereDoesntHave('participants', fn ($query) => $query->where('users.id', $user->id))
+            ->first();
+        if (! $room) {
+            return;
+        }
+        $room->participants()->attach($user->id, ['role' => 'member']);
+        $this->roomTab = 'my-rooms';
+        $this->roomSearch = '';
+        $this->selectConversation($room->id);
+    }
+
     public function render()
     {
         $this->markConversationAsRead($this->selectedConversationId);
 
+        $selectedConversationNotificationMode = $this->selectedConversationId
+            ? $this->notificationModeForConversation($this->selectedConversationId)
+            : 'all';
+
         return view('livewire.chat.chat-page', [
             'conversations' => $this->conversations,
             'selectedConversation' => $this->selectedConversation,
+            'selectedConversationNotificationMode' => $selectedConversationNotificationMode,
             'availableUsers' => $this->availableUsers,
             'roomInviteCandidates' => $this->roomInviteCandidates,
             'typingParticipants' => $this->typingParticipants,
             'reactionEmojis' => ['👍', '❤️', '😂', '😮', '😢', '🙏'],
+            'browseRooms' => $this->browseRooms,
+            'pendingInvitations' => $this->pendingInvitations,
         ]);
     }
 
@@ -718,6 +1024,51 @@ class ChatPage extends Component
         );
     }
 
+    protected function captureUnreadBoundary(?int $conversationId): void
+    {
+        $this->unreadBoundaryConversationId = null;
+        $this->unreadBoundaryAt = null;
+        $this->unreadFromStart = false;
+
+        $user = auth()->user();
+
+        if (! $conversationId || ! $user instanceof User) {
+            return;
+        }
+
+        $conversation = ChatConversation::query()
+            ->whereKey($conversationId)
+            ->whereHas('participants', fn ($query) => $query->where('users.id', $user->id))
+            ->with(['participants:id', 'latestMessage'])
+            ->first();
+
+        if (! $conversation || ! $conversation->isDirect() || ! $conversation->latestMessage) {
+            return;
+        }
+
+        $latestMessage = $conversation->latestMessage;
+
+        if ((int) $latestMessage->user_id === (int) $user->id) {
+            return;
+        }
+
+        $participant = $conversation->participants->firstWhere('id', $user->id);
+        $lastReadAt = $participant?->pivot?->last_read_at;
+
+        if ($lastReadAt && \Illuminate\Support\Carbon::parse($lastReadAt)->greaterThanOrEqualTo($latestMessage->created_at)) {
+            return;
+        }
+
+        $this->unreadBoundaryConversationId = $conversation->id;
+
+        if ($lastReadAt) {
+            $this->unreadBoundaryAt = (string) $lastReadAt;
+            return;
+        }
+
+        $this->unreadFromStart = true;
+    }
+
     protected function recordMessageSearchHistory(string $search): void
     {
         $history = array_values(array_filter($this->messageSearchHistory, fn (string $item) => $item !== $search));
@@ -734,6 +1085,43 @@ class ChatPage extends Component
     protected function notificationModeSessionKey(): string
     {
         return 'chat.notification_mode';
+    }
+
+    protected function messageShouldNotifyMentions(ChatMessage $message, User $user): bool
+    {
+        $messageBody = mb_strtolower(trim((string) $message->body));
+
+        if ($messageBody === '') {
+            return false;
+        }
+
+        if (str_contains($messageBody, '@todos') || str_contains($messageBody, '@all')) {
+            return true;
+        }
+
+        $userName = mb_strtolower(trim((string) $user->name));
+
+        if ($userName === '') {
+            return false;
+        }
+
+        $nameParts = collect(preg_split('/\s+/', $userName) ?: [])
+            ->filter(fn (string $part) => mb_strlen($part) > 1)
+            ->map(fn (string $part) => '@' . $part)
+            ->values();
+
+        $nameCandidates = $nameParts
+            ->push('@' . $userName)
+            ->unique()
+            ->values();
+
+        foreach ($nameCandidates as $candidate) {
+            if (str_contains($messageBody, $candidate)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function syncTypingIndicator(int $conversationId, int $userId, string $messageBody): void

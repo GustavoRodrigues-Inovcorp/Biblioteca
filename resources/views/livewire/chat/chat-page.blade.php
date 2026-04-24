@@ -17,9 +17,43 @@
                     $managedConversation = $selectedConversation->isRoom() || $conversationParticipants->count() > 1;
                     $isSingleDirectConversation = $selectedConversation->isDirect() && $conversationParticipants->count() === 1;
                     $showConversationMenu = $managedConversation || $isSingleDirectConversation;
+                    $canLeaveConversation = ($selectedConversation->isRoom() || $allConversationParticipants->count() > 2)
+                        && (int) $selectedConversation->created_by_id !== (int) auth()->id();
+                    $canDeleteConversation = ($selectedConversation->isRoom() || $allConversationParticipants->count() > 2)
+                        && (int) $selectedConversation->created_by_id === (int) auth()->id();
                     $canManageConversation = auth()->user()?->isAdmin()
                         || (int) $selectedConversation->created_by_id === (int) auth()->id()
                         || (string) ($currentConversationParticipant?->pivot?->role ?? '') === 'admin';
+                    $mentionHighlightNames = $allConversationParticipants
+                        ->pluck('name')
+                        ->filter(fn ($name) => trim((string) $name) !== '')
+                        ->map(fn ($name) => trim((string) $name))
+                        ->push('todos')
+                        ->push('all')
+                        ->unique()
+                        ->sortByDesc(fn (string $name) => mb_strlen($name))
+                        ->values();
+                    $mentionSuggestions = collect([
+                        [
+                            'id' => 'all',
+                            'label' => 'Todos',
+                            'mention' => '@todos',
+                            'search' => 'todos all',
+                            'type' => 'all',
+                        ],
+                    ])->merge(
+                        $allConversationParticipants
+                            ->where('id', '!=', auth()->id())
+                            ->values()
+                            ->map(fn ($participant) => [
+                            'id' => $participant->id,
+                            'label' => $participant->name,
+                            'mention' => '@' . $participant->name,
+                            'search' => mb_strtolower(trim((string) $participant->name . ' @' . (string) $participant->name)),
+                            'photo' => $participant->profile_photo_url,
+                            'type' => 'participant',
+                        ])
+                    )->values();
                 @endphp
 
                 <header class="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 pl-1 pr-5 pt-3 lg:pl-2 lg:pr-8">
@@ -42,7 +76,7 @@
                     <div class="pointer-events-auto flex items-center gap-2">
                         @if ($showConversationMenu)
                             <div x-data="{ openConversationMenu: false }" class="relative">
-                                <button type="button" @click="openConversationMenu = !openConversationMenu" class="inline-flex size-9 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 transition hover:bg-black/5" aria-label="Mais opções">
+                                <button type="button" @click="openConversationMenu = !openConversationMenu" class="inline-flex size-9 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 transition hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300 focus:border-blue-300 focus:bg-blue-50" aria-label="Mais opções">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6h.01M12 12h.01M12 18h.01" />
                                     </svg>
@@ -82,12 +116,26 @@
                                                     <p class="mt-0.5 truncate text-xs text-black/45">{{ $participant->email ?? $participant->estado ?? 'Participante' }}</p>
                                                 </div>
 
-                                                @if ($canManageConversation && (int) $participant->id !== (int) auth()->id() && ! $isCreator)
+                                                @if ((int) $participant->id !== (int) auth()->id())
                                                     <div class="flex shrink-0 items-center gap-1">
-                                                        @unless ($isAdminParticipant)
-                                                            <button type="button" wire:click="promoteConversationParticipant({{ $participant->id }})" @click="openMembersMenu = false" class="rounded-full border border-black/10 bg-white px-2.5 py-1 text-[11px] font-semibold text-black/65 transition hover:bg-black/5">Promover</button>
-                                                        @endunless
-                                                        <button type="button" wire:click="removeConversationParticipant({{ $participant->id }})" @click="openMembersMenu = false" class="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100">Expulsar</button>
+                                                        <button
+                                                            type="button"
+                                                            wire:click="startDirectConversation({{ $participant->id }})"
+                                                            @click="openConversationMenu = false"
+                                                            class="inline-flex size-7 items-center justify-center rounded-full border border-black/10 bg-white text-black/60 transition hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300"
+                                                            aria-label="Enviar mensagem direta a {{ $participant->name }}"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                                                            </svg>
+                                                        </button>
+
+                                                        @if ($canManageConversation && ! $isCreator)
+                                                            @unless ($isAdminParticipant)
+                                                                <button type="button" wire:click="promoteConversationParticipant({{ $participant->id }})" @click="openMembersMenu = false" class="rounded-full border border-black/10 bg-white px-2.5 py-1 text-[11px] font-semibold text-black/65 transition hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300">Promover</button>
+                                                            @endunless
+                                                            <button type="button" wire:click="removeConversationParticipant({{ $participant->id }})" @click="openMembersMenu = false" class="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100">Expulsar</button>
+                                                        @endif
                                                     </div>
                                                 @endif
                                             </div>
@@ -96,7 +144,11 @@
 
                                     @if ($canManageConversation)
                                         <div class="border-t border-black/10 px-4 py-3">
-                                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-black/40">Convidar pessoas</p>
+                                            @if ($selectedConversation->isRoom())
+                                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-black/40">Convidar pessoas</p>
+                                            @else
+                                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-black/40">Adicionar pessoas</p>
+                                            @endif
                                             <div x-data="{
                                                 inviteSearch: '',
                                                 selectedInviteUsers: [],
@@ -171,8 +223,46 @@
                                                 </div>
 
                                                 <p x-show="inviteSearch.trim() !== '' && filteredInviteUsers().length === 0" class="px-2 pt-2 text-xs text-black/45">Sem candidatos</p>
-                                                <button type="button" @click="$wire.set('roomInviteIds', selectedInviteUsers); $wire.inviteSelectedUsers(); selectedInviteUsers = []; inviteSearch = ''; openConversationMenu = false" class="mt-2 w-full rounded-full bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-900" :disabled="selectedInviteUsers.length === 0" x-bind:class="selectedInviteUsers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''">Adicionar</button>
+                                                @if ($selectedConversation->isRoom())
+                                                    <button type="button" @click="$wire.set('roomInviteIds', selectedInviteUsers); $wire.inviteSelectedUsers(); selectedInviteUsers = []; inviteSearch = ''; openConversationMenu = false" class="mt-2 w-full rounded-full bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-900" :disabled="selectedInviteUsers.length === 0" x-bind:class="selectedInviteUsers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''">Convidar</button>
+                                                @else
+                                                    <button type="button" @click="$wire.set('roomInviteIds', selectedInviteUsers); $wire.inviteSelectedUsers(); selectedInviteUsers = []; inviteSearch = ''; openConversationMenu = false" class="mt-2 w-full rounded-full bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-900" :disabled="selectedInviteUsers.length === 0" x-bind:class="selectedInviteUsers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''">Adicionar</button>
+                                                @endif
                                             </div>
+                                        </div>
+                                    @endif
+
+                                    @if ($canDeleteConversation)
+                                        <div class="border-t border-black/10 p-2">
+                                            <button
+                                                type="button"
+                                                wire:click="deleteManagedConversation"
+                                                @click="openConversationMenu = false"
+                                                class="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                                            >
+                                                <span>{{ $selectedConversation->isRoom() ? 'Apagar sala' : 'Apagar grupo' }}</span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3H6.75A2.25 2.25 0 0 0 4.5 5.25v13.5A2.25 2.25 0 0 0 6.75 21h6.75A2.25 2.25 0 0 0 15.75 18.75V15" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 12h9m0 0-3-3m3 3-3 3" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    @endif
+
+                                    @if ($canLeaveConversation)
+                                        <div class="border-t border-black/10 p-2">
+                                            <button
+                                                type="button"
+                                                wire:click="leaveConversation"
+                                                @click="openConversationMenu = false"
+                                                class="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                                            >
+                                                <span>{{ $selectedConversation->isRoom() ? 'Sair da sala' : 'Sair do grupo' }}</span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3H6.75A2.25 2.25 0 0 0 4.5 5.25v13.5A2.25 2.25 0 0 0 6.75 21h6.75A2.25 2.25 0 0 0 15.75 18.75V15" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 12h9m0 0-3-3m3 3-3 3" />
+                                                </svg>
+                                            </button>
                                         </div>
                                     @endif
                                 </div>
@@ -194,8 +284,8 @@
                             </div>
                         @endif
                         <div x-data="{ openNotificationsMenu: false }" class="relative">
-                            <button type="button" @click="openNotificationsMenu = !openNotificationsMenu" class="inline-flex size-9 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 transition hover:bg-black/5" aria-label="Notificações">
-                                @if ($notificationMode === 'none')
+                            <button type="button" @click="openNotificationsMenu = !openNotificationsMenu" class="inline-flex size-9 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 transition hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300 focus:border-blue-300 focus:bg-blue-50">
+                                @if ($selectedConversationNotificationMode === 'none')
                                     <svg xmlns="http://www.w3.org/2000/svg"
                                         fill="#1E40AF" viewBox="0 0 24 24"
                                         stroke="#ffffff" stroke-width="0.5" class="size-5">
@@ -216,7 +306,7 @@
                                             stroke-width="1.5"
                                             stroke-linecap="round" />
                                     </svg>
-                                @elseif ($notificationMode === 'mentions')
+                                @elseif ($selectedConversationNotificationMode === 'mentions')
                                     <div class="relative flex size-5 items-center justify-center">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="#1E40AF" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="0.5" class="size-5">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9a6 6 0 1 0-12 0v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
@@ -240,7 +330,7 @@
                                 </div>
 
                                 <div class="px-2 py-2">
-                                    <button type="button" wire:click="setNotificationMode('all')" @click="openNotificationsMenu = false" class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/5 {{ $notificationMode === 'all' ? 'bg-blue-50' : '' }}">
+                                    <button type="button" wire:click="setNotificationMode('all')" @click="openNotificationsMenu = false" class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/5 {{ $selectedConversationNotificationMode === 'all' ? 'bg-blue-50' : '' }}">
                                         <svg xmlns="http://www.w3.org/2000/svg"
                                             fill="#1E40AF" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="0.5" class="size-6">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9a6 6 0 1 0-12 0v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
@@ -251,7 +341,7 @@
                                         </div>
                                     </button>
 
-                                    <button type="button" wire:click="setNotificationMode('mentions')" @click="openNotificationsMenu = false" class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/5 {{ $notificationMode === 'mentions' ? 'bg-blue-50' : '' }}">
+                                    <button type="button" wire:click="setNotificationMode('mentions')" @click="openNotificationsMenu = false" class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/5 {{ $selectedConversationNotificationMode === 'mentions' ? 'bg-blue-50' : '' }}">
                                         <div class="relative flex size-6 items-center justify-center">
                                             <svg xmlns="http://www.w3.org/2000/svg"
                                                 fill="#1E40AF" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="0.5" class="size-6">
@@ -279,7 +369,7 @@
                                         </div>
                                     </button>
 
-                                    <button type="button" wire:click="setNotificationMode('none')" @click="openNotificationsMenu = false" class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/5 {{ $notificationMode === 'none' ? 'bg-blue-50' : '' }}">
+                                    <button type="button" wire:click="setNotificationMode('none')" @click="openNotificationsMenu = false" class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/5 {{ $selectedConversationNotificationMode === 'none' ? 'bg-blue-50' : '' }}">
                                         <div class="relative flex size-6 items-center justify-center">
                                             <svg xmlns="http://www.w3.org/2000/svg"
                                                 fill="#1E40AF" viewBox="0 0 24 24"
@@ -318,6 +408,13 @@
                         <div class="mx-auto max-w-4xl">
                             @php
                                 $groupedMessages = $selectedConversation->messages->groupBy(fn ($message) => $message->created_at?->toDateString() ?? '');
+                                $showUnreadFeedback = $selectedConversation->isDirect()
+                                    && (int) ($unreadBoundaryConversationId ?? 0) === (int) $selectedConversation->id
+                                    && ($unreadFromStart || ! empty($unreadBoundaryAt));
+                                $unreadBoundaryCarbon = (! empty($unreadBoundaryAt))
+                                    ? \Illuminate\Support\Carbon::parse($unreadBoundaryAt)
+                                    : null;
+                                $unreadDividerShown = false;
                             @endphp
 
                             @forelse ($groupedMessages as $dateKey => $messages)
@@ -358,6 +455,26 @@
                                         $messageUserPhoto = $message->user?->profile_photo_url;
                                         $messageReactions = $message->reactions->groupBy('emoji');
                                         $currentUserReaction = $message->reactions->firstWhere('user_id', auth()->id())?->emoji;
+                                        $isUnreadIncomingMessage = false;
+
+                                        if ($showUnreadFeedback && ! $isOwnMessage && $message->created_at) {
+                                            $isUnreadIncomingMessage = $unreadFromStart
+                                                ? true
+                                                : ($unreadBoundaryCarbon && $message->created_at->greaterThan($unreadBoundaryCarbon));
+                                        }
+
+                                        $showUnreadDivider = $isUnreadIncomingMessage && ! $unreadDividerShown;
+
+                                        if ($showUnreadDivider) {
+                                            $unreadDividerShown = true;
+                                        }
+
+                                        $messageBubbleToneClass = $isOwnMessage
+                                            ? 'bg-[#dbeafe]'
+                                            : ($isUnreadIncomingMessage ? 'bg-[#dce8ff] ring-1 ring-blue-200' : 'bg-[#ececec]');
+                                        $canDeleteMessage = $isOwnMessage
+                                            || ($selectedConversation?->isRoom()
+                                                && (int) $selectedConversation->created_by_id === (int) auth()->id());
                                         $messageTopSpacingClass = $isMessageContinuation
                                             ? 'mt-1'
                                             : 'mt-3';
@@ -368,6 +485,17 @@
                                             ? ($messageReactions->isNotEmpty() ? 'pt-0.5 pb-2' : 'py-2')
                                             : ($messageReactions->isNotEmpty() ? 'pt-2 pb-2' : 'py-2');
                                     @endphp
+
+                                    @if ($showUnreadDivider)
+                                        <div class="flex items-center gap-4 py-2">
+                                            <div class="h-px flex-1 bg-blue-200"></div>
+                                            <div class="rounded-full bg-blue-100 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-800 shadow-sm">
+                                                Novas mensagens
+                                            </div>
+                                            <div class="h-px flex-1 bg-blue-200"></div>
+                                        </div>
+                                    @endif
+
                                     <div x-data="{ openReactionPicker: false }" class="group flex {{ $isOwnMessage ? 'justify-end' : 'justify-start' }} {{ $messageTopSpacingClass }} {{ $messageBottomSpacingClass }}">
                                         <div class="flex max-w-[min(92%,64rem)] items-start {{ $isOwnMessage ? 'flex-row-reverse' : '' }} gap-1.5">
                                             <div class="mt-0.5 flex shrink-0 flex-col items-center">
@@ -387,7 +515,7 @@
                                                 @endif
                                             </div>
 
-                                            <div class="relative w-fit min-w-[10rem] max-w-full px-4 {{ $messageBubblePaddingClass }} text-[#1f1f1f] {{ $isOwnMessage ? 'bg-[#dbeafe]' : 'bg-[#ececec]' }} shadow-[0_1px_1px_rgba(0,0,0,0.02)] rounded-xl">
+                                            <div class="relative w-fit min-w-[10rem] max-w-full px-4 {{ $messageBubblePaddingClass }} text-[#1f1f1f] {{ $messageBubbleToneClass }} shadow-[0_1px_1px_rgba(0,0,0,0.02)] rounded-xl">
                                                 <div class="mb-1 flex items-center gap-2 text-xs {{ $isOwnMessage ? 'justify-end' : '' }}">
                                                     @if ($shouldShowSenderName)
                                                         <span class="font-semibold text-slate-900">{{ $messageUserName }}</span>
@@ -414,7 +542,20 @@
                                                 @endif
 
                                                 @if (trim((string) $message->body) !== '')
-                                                    <p class="whitespace-pre-wrap text-[15px] leading-6">{{ $message->body }}</p>
+                                                    @php
+                                                        $escapedMessageBody = e((string) $message->body);
+                                                        $formattedMessageBody = $escapedMessageBody;
+
+                                                        foreach ($mentionHighlightNames as $mentionName) {
+                                                            $mentionPattern = '/(^|\s)@(' . preg_quote($mentionName, '/') . ')(?=\s|$|[.,!?;:])/iu';
+                                                            $formattedMessageBody = preg_replace(
+                                                                $mentionPattern,
+                                                                '$1@<span class="font-bold text-blue-800">$2</span>',
+                                                                $formattedMessageBody
+                                                            );
+                                                        }
+                                                    @endphp
+                                                    <p class="whitespace-pre-wrap text-[15px] leading-6">{!! $formattedMessageBody !!}</p>
                                                 @endif
 
                                                 @if ($message->attachment_path)
@@ -469,12 +610,20 @@
                                                     @endforeach
                                                 </div>
 
-                                                    <div class="absolute top-1/2 {{ $isOwnMessage ? '-left-[4.75rem] -translate-y-1/2' : '-right-[4.75rem] -translate-y-1/2' }} z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                                    <div class="absolute top-1/2 {{ $isOwnMessage ? '-left-[6.75rem] -translate-y-1/2' : '-right-[4.75rem] -translate-y-1/2' }} z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                                                         <button type="button" wire:click="replyToMessage({{ $message->id }})" class="inline-flex size-7 items-center justify-center rounded-full border border-black/10 bg-white text-black/80 shadow-sm" aria-label="Responder à mensagem">
                                                             <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h13a5 5 0 0 1 5 5v1" />
                                                             </svg>
                                                         </button>
+
+                                                        @if ($canDeleteMessage)
+                                                            <button type="button" wire:click="deleteMessage({{ $message->id }})" class="inline-flex size-7 items-center justify-center rounded-full border border-black/10 bg-white text-rose-700 shadow-sm" aria-label="Apagar mensagem">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673A2.25 2.25 0 0 1 15.916 21.75H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0V4.875c0-1.035-.84-1.875-1.875-1.875h-3.75C9.84 3 9 3.84 9 4.875V5.25m7.5 0h-7.5" />
+                                                                </svg>
+                                                            </button>
+                                                        @endif
 
                                                         <button type="button" @click="openReactionPicker = !openReactionPicker" class="inline-flex size-7 items-center justify-center rounded-full border border-black/10 bg-white text-[11px] font-bold text-black/80 shadow-sm" aria-label="Reagir à mensagem">
                                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -559,19 +708,147 @@
 
                         <form wire:submit.prevent="sendMessage" class="mx-auto flex max-w-4xl flex-col gap-2">
                             <div class="flex items-center gap-2">
-                                <button type="button" wire:click="toggleMessageSearch" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full border transition {{ $isMessageSearchMode ? 'border-blue-300 bg-blue-100 text-blue-800' : 'border-black/20 bg-white text-slate-900 hover:bg-blue-100 hover:text-blue-800 hover:border-blue-300' }}" aria-label="Pesquisar mensagens">
+                                <button type="button" wire:click="toggleMessageSearch" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full border transition {{ $isMessageSearchMode ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-black/20 bg-white text-black/70 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300' }}"
+>
                                     <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="2.3" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
                                     </svg>
                                 </button>
 
-                            <div x-data="{ openEmoji: false, emojiSearch: '', activeEmojiCategory: 'faces', emojiCategories: { faces: [{ value: '😀', label: 'feliz sorriso' }, { value: '😁', label: 'sorriso grande' }, { value: '😂', label: 'rir lagrimas' }, { value: '🤣', label: 'rir muito' }, { value: '😊', label: 'timido feliz' }, { value: '😍', label: 'apaixonado' }, { value: '😎', label: 'cool oculos' }, { value: '🤔', label: 'pensativo' }, { value: '😢', label: 'triste' }, { value: '😭', label: 'chorar' }, { value: '😡', label: 'zangado' }, { value: '🥳', label: 'festa' }], gestures: [{ value: '👍', label: 'gosto positivo' }, { value: '👎', label: 'nao gosto negativo' }, { value: '👏', label: 'palmas' }, { value: '🙌', label: 'celebrar' }, { value: '🙏', label: 'obrigado pedido' }, { value: '👌', label: 'ok perfeito' }, { value: '🤝', label: 'acordo' }, { value: '👋', label: 'ola adeus' }, { value: '💪', label: 'forca' }, { value: '✌️', label: 'paz' }], objects: [{ value: '🔥', label: 'fogo quente' }, { value: '🎉', label: 'celebracao' }, { value: '⭐', label: 'estrela destaque' }, { value: '💡', label: 'ideia' }, { value: '📚', label: 'livros estudo' }, { value: '💬', label: 'mensagem conversa' }, { value: '✅', label: 'confirmado' }, { value: '❗', label: 'importante' }, { value: '⚠️', label: 'aviso' }, { value: '💯', label: '100%' }], hearts: [{ value: '❤️', label: 'coracao vermelho amor' }, { value: '🧡', label: 'coracao laranja' }, { value: '💛', label: 'coracao amarelo' }, { value: '💚', label: 'coracao verde' }, { value: '💙', label: 'coracao azul' }, { value: '💜', label: 'coracao roxo' }, { value: '🤍', label: 'coracao branco' }, { value: '🖤', label: 'coracao preto' }, { value: '💔', label: 'coracao partido' }, { value: '💕', label: 'dois coracoes' }] }, addEmoji(emoji) { const input = this.$refs.messageInput; input.value = (input.value || '') + emoji.value; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); this.openEmoji = false; }, filteredEmojis() { const source = this.emojiCategories[this.activeEmojiCategory] || []; const query = this.emojiSearch.trim().toLowerCase(); if (!query) return source; return source.filter((emoji) => emoji.label.includes(query)); } }" class="flex w-full rounded-full border border-black/20 bg-white pl-4 pr-1 py-1 focus-within:border-blue-300 focus-within:ring-1 focus-within:ring-blue-300"> 
+                            <div x-data="{
+                                openEmoji: false,
+                                emojiSearch: '',
+                                activeEmojiCategory: 'faces',
+                                mentionInputValue: '',
+                                mentionSuggestions: @js($mentionSuggestions),
+                                showMentionSuggestions: false,
+                                emojiCategories: { faces: [{ value: '😀', label: 'feliz sorriso' }, { value: '😁', label: 'sorriso grande' }, { value: '😂', label: 'rir lagrimas' }, { value: '🤣', label: 'rir muito' }, { value: '😊', label: 'timido feliz' }, { value: '😍', label: 'apaixonado' }, { value: '😎', label: 'cool oculos' }, { value: '🤔', label: 'pensativo' }, { value: '😢', label: 'triste' }, { value: '😭', label: 'chorar' }, { value: '😡', label: 'zangado' }, { value: '🥳', label: 'festa' }], gestures: [{ value: '👍', label: 'gosto positivo' }, { value: '👎', label: 'nao gosto negativo' }, { value: '👏', label: 'palmas' }, { value: '🙌', label: 'celebrar' }, { value: '🙏', label: 'obrigado pedido' }, { value: '👌', label: 'ok perfeito' }, { value: '🤝', label: 'acordo' }, { value: '👋', label: 'ola adeus' }, { value: '💪', label: 'forca' }, { value: '✌️', label: 'paz' }], objects: [{ value: '🔥', label: 'fogo quente' }, { value: '🎉', label: 'celebracao' }, { value: '⭐', label: 'estrela destaque' }, { value: '💡', label: 'ideia' }, { value: '📚', label: 'livros estudo' }, { value: '💬', label: 'mensagem conversa' }, { value: '✅', label: 'confirmado' }, { value: '❗', label: 'importante' }, { value: '⚠️', label: 'aviso' }, { value: '💯', label: '100%' }], hearts: [{ value: '❤️', label: 'coracao vermelho amor' }, { value: '🧡', label: 'coracao laranja' }, { value: '💛', label: 'coracao amarelo' }, { value: '💚', label: 'coracao verde' }, { value: '💙', label: 'coracao azul' }, { value: '💜', label: 'coracao roxo' }, { value: '🤍', label: 'coracao branco' }, { value: '🖤', label: 'coracao preto' }, { value: '💔', label: 'coracao partido' }, { value: '💕', label: 'dois coracoes' }] },
+                                addEmoji(emoji) {
+                                    const input = this.$refs.messageInput;
+                                    const currentValue = (input.value || '').toString();
+                                    const nextValue = `${currentValue}${emoji.value}`;
+                                    input.value = nextValue;
+                                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                                    this.mentionInputValue = nextValue;
+                                    this.openEmoji = false;
+                                    this.showMentionSuggestions = false;
+                                    this.$nextTick(() => input.focus());
+                                },
+                                mentionQuery() {
+                                    const value = (this.mentionInputValue || '').toString();
+                                    const lastAt = value.lastIndexOf('@');
+
+                                    if (lastAt === -1) {
+                                        return null;
+                                    }
+
+                                    const beforeAt = lastAt === 0 ? ' ' : value[lastAt - 1];
+
+                                    if (! /\s/.test(beforeAt)) {
+                                        return null;
+                                    }
+
+                                    const query = value.slice(lastAt + 1);
+
+                                    if (/\s/.test(query) || query.includes('@')) {
+                                        return null;
+                                    }
+
+                                    return query.toLowerCase();
+                                },
+                                filteredMentionSuggestions() {
+                                    const query = this.mentionQuery();
+
+                                    if (query === null) {
+                                        return [];
+                                    }
+
+                                    return this.mentionSuggestions.filter((suggestion) => {
+                                        return (suggestion.search || '').includes(query);
+                                    }).slice(0, 8);
+                                },
+                                updateMentionSuggestionsState(value = '') {
+                                    this.mentionInputValue = (value || '').toString();
+                                    const query = this.mentionQuery();
+                                    this.showMentionSuggestions = query !== null;
+
+                                    if (this.showMentionSuggestions) {
+                                        this.openEmoji = false;
+                                    }
+                                },
+                                applyMentionSuggestion(suggestion) {
+                                    const value = (this.$refs.messageInput.value || '').toString();
+                                    const atIndex = value.lastIndexOf('@');
+
+                                    if (atIndex === -1) {
+                                        return;
+                                    }
+
+                                    const nextValue = `${value.slice(0, atIndex)}${suggestion.mention} `;
+                                    this.$refs.messageInput.value = nextValue;
+                                    this.$refs.messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                    this.mentionInputValue = nextValue;
+                                    this.showMentionSuggestions = false;
+                                    this.openEmoji = false;
+                                    this.$nextTick(() => this.$refs.messageInput.focus());
+                                },
+                                filteredEmojis() {
+                                    const source = this.emojiCategories[this.activeEmojiCategory] || [];
+                                    const query = this.emojiSearch.trim().toLowerCase();
+
+                                    if (!query) {
+                                        return source;
+                                    }
+
+                                    return source.filter((emoji) => emoji.label.includes(query));
+                                }
+                            }" class="flex w-full rounded-full border border-black/20 bg-white pl-4 pr-1 py-1 focus-within:border-blue-300 focus-within:ring-1 focus-within:ring-blue-300">
                                 @if ($isMessageSearchMode)
                                     <label for="message-search" class="sr-only">Pesquisar mensagens</label>
-                                    <input id="message-search" wire:model.live.debounce.250ms="messageSearch" type="text" class="w-full align-center resize-none border-none bg-transparent py-1 px-0 text-sm text-black/80 placeholder:text-black/40 focus:outline-none focus:ring-0" placeholder="Pesquisar mensagens nesta conversa...">
+                                    <input id="message-search" wire:model.defer="messageSearch" type="text" class="w-full align-center resize-none border-none bg-transparent py-1 px-0 text-sm text-black/80 placeholder:text-black/40 focus:outline-none focus:ring-0" placeholder="Pesquisar mensagens nesta conversa...">
                                 @else
-                                    <label for="message-body" class="sr-only">Mensagem</label>
-                                    <input id="message-body" x-ref="messageInput" wire:model.live.debounce.300ms="messageBody" rows="1" class="w-full align-center resize-none border-none bg-transparent p-0 text-sm text-black/80 placeholder:text-black/40 focus:outline-none focus:ring-0" placeholder="Escreve uma mensagem..."></input>
+                                    <div class="relative flex-1 min-w-0" x-init="mentionInputValue = ($refs.messageInput?.value || '').toString(); openEmoji = false">
+                                        <label for="message-body" class="sr-only">Mensagem</label>
+                                        <input
+                                            id="message-body"
+                                            x-ref="messageInput"
+                                            wire:model.live.debounce.300ms="messageBody"
+                                            @input="openEmoji = false; updateMentionSuggestionsState($event.target.value)"
+                                            @focus="openEmoji = false; updateMentionSuggestionsState($event.target.value)"
+                                            @keydown.escape="openEmoji = false; showMentionSuggestions = false"
+                                            class="relative z-10 w-full align-center resize-none border-none bg-transparent p-0 text-sm text-black/80 placeholder:text-black/40 focus:outline-none focus:ring-0"
+                                            placeholder="Escreve uma mensagem..."
+                                        >
+
+                                        <div
+                                            x-cloak
+                                            x-show="showMentionSuggestions && filteredMentionSuggestions().length > 0"
+                                            @click.outside="showMentionSuggestions = false"
+                                            class="absolute bottom-full left-0 z-50 mb-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-black/10 bg-white p-1 shadow-lg"
+                                        >
+                                            <template x-for="suggestion in filteredMentionSuggestions()" :key="suggestion.id">
+                                                <button
+                                                    type="button"
+                                                    @mousedown.prevent="applyMentionSuggestion(suggestion)"
+                                                    class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/5"
+                                                >
+                                                    <template x-if="suggestion.type === 'participant' && suggestion.photo">
+                                                        <img :src="suggestion.photo" :alt="suggestion.label" class="size-8 rounded-full object-cover">
+                                                    </template>
+                                                    <template x-if="suggestion.type === 'participant' && !suggestion.photo">
+                                                        <span class="inline-flex size-8 items-center justify-center rounded-full bg-[#ececec] text-xs font-semibold text-black/65" x-text="suggestion.label.slice(0, 1).toUpperCase()"></span>
+                                                    </template>
+                                                    <template x-if="suggestion.type === 'all'">
+                                                        <span class="inline-flex size-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-800">@</span>
+                                                    </template>
+                                                    <div class="min-w-0">
+                                                        <p class="truncate text-sm font-semibold text-black/80" x-text="suggestion.label"></p>
+                                                        <p class="text-xs text-black/45" x-text="suggestion.mention"></p>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
                                     <input type="file" wire:model="messageAttachment" x-ref="chatAttachmentInput" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar">
                                 @endif
                             
@@ -583,7 +860,7 @@
                                         </svg>
                                     </button>
 
-                                    <button type="button" @click="openEmoji = !openEmoji" class="inline-flex size-7 items-center justify-center rounded-full text-black/65 transition hover:text-black/80" aria-label="Abrir emojis">
+                                    <button type="button" @click="openEmoji = !openEmoji; if (openEmoji) { showMentionSuggestions = false; emojiSearch = ''; }" class="inline-flex size-7 items-center justify-center rounded-full text-black/65 transition hover:text-black/80" aria-label="Abrir emojis">
                                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <circle cx="12" cy="12" r="10"></circle>
                                             <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
@@ -592,8 +869,8 @@
                                         </svg>
                                     </button>
 
-                                    <div x-cloak x-show="openEmoji" @click.outside="openEmoji = false" class="absolute bottom-10 right-10 z-20 w-60 rounded-2xl border border-black/10 bg-white p-2 shadow-lg">
-                                        <input type="text" x-model="emojiSearch" placeholder="Pesquisar emoji" class="mb-2 w-full rounded-lg border border-black/10 px-2 py-1 text-xs text-black/70 placeholder:text-black/35 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300">
+                                    <div x-cloak x-show="openEmoji && document.activeElement !== $refs.messageInput" @click.outside="openEmoji = false" class="absolute bottom-10 right-10 z-40 w-60 rounded-2xl border border-black/10 bg-white p-2 shadow-lg">
+                                        <input x-ref="emojiSearchInput" type="text" x-model="emojiSearch" placeholder="Pesquisar emoji" class="mb-2 w-full rounded-lg border border-black/10 px-2 py-1 text-xs text-black/70 placeholder:text-black/35 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300">
 
                                         <div class="mb-2 flex items-center gap-1">
                                             <button type="button" @click="activeEmojiCategory = 'faces'" :class="activeEmojiCategory === 'faces' ? 'bg-blue-800 text-white' : 'bg-black/5 text-black/70 hover:bg-black/10'" class="rounded-md px-2 py-1 text-[11px] font-semibold">Caras</button>
@@ -657,7 +934,7 @@
                 <div class="border-b border-black/10 px-4 py-4">
                     <div class="mb-3 flex items-center justify-between gap-2">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-black/35">Histórico de pesquisa</p>
-                        <button type="button" wire:click="clearMessageSearchHistory" class="rounded-full border border-black/15 bg-white px-3 py-1 text-xs font-semibold text-black/65 transition hover:bg-black/5">Limpar</button>
+                        <button type="button" wire:click="clearMessageSearchHistory" class="rounded-full border border-black/15 bg-white px-3 py-1 text-xs font-semibold text-black/65 transition hover:bg-blue-50 hover:border-blue-300">Limpar</button>
                     </div>
 
                     <div class="max-h-[calc(100dvh-14rem)] space-y-2 overflow-y-auto">
@@ -725,7 +1002,7 @@
                 @if ($isPingOpen)
                     <div x-data="{ pingSearch: '', selectedPingUsers: @js($selectedPingUserIds ?? []), availablePingUsers: @js($availableUsers->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'photo' => $u->profile_photo_url])->values()) }" class="flex flex-col h-full">
                         <div class="flex items-center justify-between mb-4">
-                            <button type="button" wire:click="togglePing" class="inline-flex size-8 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 hover:bg-black/5 transition" aria-label="Voltar">
+                            <button type="button" wire:click="togglePing" class="inline-flex size-8 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300 transition" aria-label="Voltar">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                                 </svg>
@@ -790,7 +1067,7 @@
 
                     <div class="flex items-start gap-2 overflow-x-auto pb-1">
                         <button type="button" wire:click="togglePing" class="flex min-w-[3.2rem] flex-col items-center justify-start gap-1 text-center align-top" aria-label="Ping de utilizadores">
-                            <div class="mx-auto inline-flex size-9 items-center justify-center rounded-full border border-black/15 bg-white text-black/70 shadow-sm transition hover:bg-black/5">
+                            <div class="mx-auto inline-flex size-9 items-center justify-center rounded-full border border-black/15 bg-white text-black/70 shadow-sm transition hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <defs>
                                         <mask id="add-chat-mask">
@@ -829,13 +1106,10 @@
                                 ? ($groupPreviewLabel !== '' ? $groupPreviewLabel : 'Grupo')
                                 : ($directParticipant?->name ?? $directConversation->name ?? 'Conversa direta');
                             $directParticipantPhoto = $directParticipant?->profile_photo_url;
-                            $directLastReadAt = $directConversation->participants->firstWhere('id', auth()->id())?->pivot?->last_read_at;
-                            $isDirectConversationUnread = $directConversation->latestMessage
-                                && (int) $directConversation->latestMessage->user_id !== (int) auth()->id()
-                                && (! $directLastReadAt || \Illuminate\Support\Carbon::parse($directLastReadAt)->lt($directConversation->latestMessage->created_at));
+                            $isDirectConversationUnread = $this->conversationHasUnreadNotification($directConversation);
                         @endphp
 
-                        <button type="button" wire:click="selectConversation({{ $directConversation->id }})" class="flex min-w-[3.2rem] flex-col items-center justify-start gap-1 text-center">
+                        <button type="button" wire:click="selectConversation({{ $directConversation->id }})" class="flex min-w-[3.2rem] flex-col items-center justify-start gap-1 text-center ">
                             @if ($isGroupDirectConversation)
                                 <div class="relative mx-auto h-9 w-11">
                                     @foreach ($groupPreviewParticipants as $previewIndex => $previewParticipant)
@@ -868,68 +1142,144 @@
                     @endforeach
 
                     @if ($directConversations->isEmpty())
-                        <p class="self-center pl-2 text-xs text-black/45">
-                            {{ trim($directSearch) !== '' ? 'Sem resultados para a pesquisa' : 'Sem mensagens diretas' }}
-                        </p>
+                        <div class="rounded-xl border border-dashed border-black/15 bg-white/50 px-4 py-6 text-center">
+                            <p class="self-center px-3 text-xs text-black/45">
+                                {{ trim($directSearch) !== '' ? 'Sem resultados para a pesquisa' : 'Sem mensagens diretas' }}
+                            </p>
+                        </div>
                     @endif
                 </div>
                 @endif
             </div>
 
-            <div class="px-4 py-4">
-                <div class="mb-3 flex items-center justify-between">
-                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-black/35">Salas</p>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-black/45">{{ $conversations->where('type', \App\Models\ChatConversation::TYPE_ROOM)->count() }}</span>
-                        @if (auth()->user()?->isAdmin())
-                            <button type="button" wire:click="toggleRoomForm" class="inline-flex size-7 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 transition hover:bg-black/5" aria-label="Nova sala">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" />
-                                </svg>
-                            </button>
-                        @endif
-                    </div>
+            <div class="flex-1 overflow-hidden px-4 py-4">
+                {{-- Navegação entre tabs --}}
+                <div class="mb-4 flex items-center gap-1 rounded-full border border-black/15 bg-white p-1">
+                    <button 
+                        type="button" 
+                        wire:click="setRoomTab('my-rooms')" 
+                        class="flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition {{ $roomTab === 'my-rooms' ? 'bg-blue-800 text-white' : 'text-black/65 hover:bg-black/5' }}"
+                    >
+                        Minhas Salas
+                    </button>
+                    <button 
+                        type="button" 
+                        wire:click="setRoomTab('browse')" 
+                        class="flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition {{ $roomTab === 'browse' ? 'bg-blue-800 text-white' : 'text-black/65 hover:bg-black/5' }}"
+                    >
+                        Procurar
+                    </button>
                 </div>
-
-                <div class="max-h-48 space-y-2 overflow-y-auto">
-                    @forelse ($conversations->where('type', \App\Models\ChatConversation::TYPE_ROOM) as $roomConversation)
-                        @php
-                            $roomParticipant = $roomConversation->participants->firstWhere('id', auth()->id());
-                            $roomLastReadAt = $roomParticipant?->pivot?->last_read_at;
-                            $roomHasNewMessages = $roomConversation->latestMessage
-                                && (int) $roomConversation->latestMessage->user_id !== (int) auth()->id()
-                                && (! $roomLastReadAt || \Illuminate\Support\Carbon::parse($roomLastReadAt)->lt($roomConversation->latestMessage->created_at));
-                        @endphp
-
-                        <button type="button" wire:click="selectConversation({{ $roomConversation->id }})" class="flex w-fit max-w-full items-center rounded-full border px-4 py-1.5 text-left text-sm transition {{ (int) $selectedConversationId === (int) $roomConversation->id ? 'border-black/20 bg-transparent text-black/65 hover:bg-white' : ($roomHasNewMessages ? 'border-blue-800 bg-white text-blue-800' : 'border-black/20 bg-transparent text-black/65 hover:bg-white') }}">
-                            <span class="truncate">{{ $roomConversation->name ?: 'Sala' }}</span>
-                        </button>
-                    @empty
-                        <p class="text-xs text-black/45">Sem salas disponiveis</p>
-                    @endforelse
-                </div>
-
-                @if ($showRoomForm && auth()->user()?->isAdmin())
-                    <div class="mt-4 rounded-2xl border border-black/15 bg-white p-3">
-                        <h2 class="text-sm font-semibold text-black/80">Criar sala</h2>
-                        <div class="mt-2 space-y-2">
-                            <input wire:model.defer="roomName" type="text" class="w-full rounded-xl border border-black/20 bg-white px-3 py-2 text-sm text-black/75 placeholder:text-black/40 focus:border-black/30 focus:ring-0" placeholder="Nome da sala">
-                            @error('roomName') <p class="text-xs text-rose-600">{{ $message }}</p> @enderror
-
-                            <input wire:model.defer="roomAvatar" type="text" class="w-full rounded-xl border border-black/20 bg-white px-3 py-2 text-sm text-black/75 placeholder:text-black/40 focus:border-black/30 focus:ring-0" placeholder="Avatar (url ou simbolo)">
-                            @error('roomAvatar') <p class="text-xs text-rose-600">{{ $message }}</p> @enderror
-
-                            <div class="max-h-24 space-y-1 overflow-y-auto rounded-xl border border-black/10 p-2">
-                                @foreach ($availableUsers as $user)
-                                    <label class="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-black/5">
-                                        <input wire:model.defer="roomParticipantIds" type="checkbox" value="{{ $user->id }}" class="rounded border-black/20 text-black focus:ring-black/20">
-                                        <span class="truncate text-xs text-black/70">{{ $user->name }}</span>
-                                    </label>
-                                @endforeach
-                            </div>
-
-                            <button type="button" wire:click="createRoom" class="w-full rounded-full bg-black px-3 py-2 text-xs font-semibold text-white transition hover:bg-black/80">Criar sala</button>
+                @if ($roomTab === 'my-rooms')
+                    {{-- Minhas Salas --}}
+                    <div class="mb-3 flex items-center justify-between">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-black/35">Salas</p>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-black/45">{{ $conversations->where('type', \App\Models\ChatConversation::TYPE_ROOM)->count() }}</span>
+                            @if (auth()->user()?->isAdmin())
+                                <button type="button" wire:click="toggleRoomForm" class="inline-flex size-7 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 transition hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300 focus:border-blue-300 focus:bg-blue-50" aria-label="Nova sala">
+                                    <svg xmlns="[w3.org](http://www.w3.org/2000/svg)" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" />
+                                    </svg>
+                                </button>
+                            @endif
                         </div>
+                    </div>
+                    <div class="max-h-48 space-y-2 overflow-y-auto">
+                        @forelse ($conversations->where('type', \App\Models\ChatConversation::TYPE_ROOM) as $roomConversation)
+                            @php
+                                $roomHasNewMessages = $this->conversationHasUnreadNotification($roomConversation);
+                            @endphp
+                            <button type="button" wire:click="selectConversation({{ $roomConversation->id }})" class="flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300 transition {{ (int) $selectedConversationId === (int) $roomConversation->id ? 'border-blue-300 bg-blue-50' : ($roomHasNewMessages ? 'border-blue-800 bg-white' : 'border-black/10 bg-white hover:bg-black/5') }}">
+                                @if ($roomConversation->avatar)
+                                    <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm">
+                                        {{ $roomConversation->avatar }}
+                                    </span>
+                                @else
+                                    <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-800">
+                                        {{ mb_strtoupper(mb_substr($roomConversation->name ?: 'S', 0, 1)) }}
+                                    </span>
+                                @endif
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium {{ $roomHasNewMessages ? 'text-blue-800' : 'text-black/80' }}">{{ $roomConversation->name ?: 'Sala' }}</p>
+                                    <p class="text-xs text-black/45">{{ $roomConversation->participants_count ?? $roomConversation->participants->count() }} membros</p>
+                                </div>
+                                @if ($roomHasNewMessages)
+                                    <span class="size-2 shrink-0 rounded-full bg-blue-800"></span>
+                                @endif
+                            </button>
+                        @empty
+                            <div class="rounded-xl border border-dashed border-black/15 bg-white/50 px-4 py-6 text-center">
+                                <p class="text-sm text-black/45">Não estás em nenhuma sala</p>
+                                <button type="button" wire:click="setRoomTab('browse')" class="mt-2 text-xs font-semibold text-blue-800 hover:underline">Procurar salas</button>
+                            </div>
+                        @endforelse
+                    </div>
+                    @if ($showRoomForm && auth()->user()?->isAdmin())
+                        <div class="mt-4 rounded-2xl border border-black/15 bg-white p-3">
+                            <h2 class="text-sm font-semibold text-black/80">Criar sala</h2>
+                            <div class="mt-2 space-y-2">
+                                <input wire:model.defer="roomName" type="text" class="w-full rounded-xl border border-black/20 bg-white px-3 py-2 text-xs text-black/75 placeholder:text-black/40 focus:border-blue-300 focus:ring-blue-300" placeholder="Nome da sala">
+                                @error('roomName') <p class="text-xs text-rose-600">{{ $message }}</p> @enderror
+                                <input wire:model.defer="roomAvatar" type="text" class="w-full rounded-xl border border-black/20 bg-white px-3 py-2 text-xs text-black/75 placeholder:text-black/40 focus:border-blue-300 focus:ring-blue-300" placeholder="Avatar (emoji ou símbolo)">
+                                @error('roomAvatar') <p class="text-xs text-rose-600">{{ $message }}</p> @enderror
+                                <div class="max-h-24 space-y-1 overflow-y-auto rounded-xl border border-black/10 p-2">
+                                    @foreach ($availableUsers as $user)
+                                        <label class="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-black/5">
+                                            <input wire:model.defer="roomParticipantIds" type="checkbox" value="{{ $user->id }}" class="rounded border-black/20 text-blue-800 focus:ring-blue-300">
+                                            <span class="truncate text-xs text-black/70">{{ $user->name }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <button type="button" wire:click="createRoom" class="w-full rounded-full bg-blue-800 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-900">Criar sala</button>
+                            </div>
+                        </div>
+                    @endif
+                @else
+                    {{-- Procurar Salas --}}
+                    <div class="mb-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-black/35">Procurar Salas</p>
+                        <input 
+                            wire:model.live.debounce.300ms="roomSearch" 
+                            type="text" 
+                            class="w-full rounded-full border border-black/20 bg-white px-3 py-1.5 text-xs text-black/75 placeholder:text-black/40 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300" 
+                            placeholder="Pesquisar por nome..."
+                        >
+                    </div>
+                    <div class="max-h-64 space-y-2 overflow-y-auto">
+                        @forelse ($browseRooms as $room)
+                            <div class="flex items-center gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 transition hover:border-black/20">
+                                @if ($room->avatar)
+                                    <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm">
+                                        {{ $room->avatar }}
+                                    </span>
+                                @else
+                                    <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-800">
+                                        {{ mb_strtoupper(mb_substr($room->name ?: 'S', 0, 1)) }}
+                                    </span>
+                                @endif
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-black/80">{{ $room->name ?: 'Sala' }}</p>
+                                    <p class="text-xs text-black/45">{{ $room->participants_count }} membros</p>
+                                </div>
+                                <button 
+                                    type="button" 
+                                    wire:click="joinRoom({{ $room->id }})" 
+                                    class="shrink-0 rounded-full bg-blue-800 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-900"
+                                >
+                                    Entrar
+                                </button>
+                            </div>
+                        @empty
+                            <div class="rounded-xl border border-dashed border-black/15 bg-white/50 px-4 py-6 text-center">
+                                @if (trim($roomSearch) !== '')
+                                    <p class="text-sm text-black/45">Nenhuma sala encontrada</p>
+                                    <p class="mt-1 text-xs text-black/35">Tenta outro termo de pesquisa</p>
+                                @else
+                                    <p class="text-xs text-black/45">Não há salas disponíveis</p>
+                                @endif
+                            </div>
+                        @endforelse
                     </div>
                 @endif
             </div>
@@ -937,4 +1287,88 @@
         </aside>
         </div>
     </div>
+
+    {{-- Botão flutuante de convites --}}
+    @if (! auth()->user()?->isAdmin())
+        <div
+            x-data="{ openInvitations: false }"
+            class="fixed bottom-6 right-6 z-50"
+        >
+            <button
+                type="button"
+                @click="openInvitations = !openInvitations"
+                class="relative inline-flex size-11 items-center justify-center rounded-full border border-black/20 bg-white text-black/70 shadow-lg transition hover:bg-blue-50 hover:text-blue-800 hover:border-blue-200"
+                aria-label="Convites de salas"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                </svg>
+
+                @if ($pendingInvitations->isNotEmpty())
+                    <span class="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-blue-800 text-[10px] font-bold text-white ring-2 ring-white">
+                        {{ $pendingInvitations->count() > 9 ? '9+' : $pendingInvitations->count() }}
+                    </span>
+                @endif
+            </button>
+
+            <div
+                x-cloak
+                x-show="openInvitations"
+                @click.outside="openInvitations = false"
+                class="absolute bottom-14 right-0 z-50 w-80 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-xl"
+            >
+                <div class="border-b border-black/10 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-black/45">Convites</p>
+                </div>
+
+                <div class="max-h-96 overflow-y-auto">
+                    @forelse ($pendingInvitations as $invitation)
+                        <div class="flex flex-col gap-3 border-b border-black/5 px-4 py-3 last:border-0">
+                            <div class="flex items-center gap-3">
+                                {{-- Avatar da sala --}}
+                                <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-800">
+                                    {{ $invitation->conversation->avatar ?: mb_strtoupper(mb_substr($invitation->conversation->name ?: 'S', 0, 1)) }}
+                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-semibold text-black/80">{{ $invitation->conversation->name ?: 'Sala' }}</p>
+                                    <div class="mt-0.5 flex items-center gap-1.5">
+                                        {{-- Avatar de quem convidou --}}
+                                        <span class="inline-flex size-4 items-center justify-center overflow-hidden rounded-full bg-[#ececec] text-[9px] font-semibold text-black/60">
+                                            @if ($invitation->invitedBy?->profile_photo_url)
+                                                <img src="{{ $invitation->invitedBy->profile_photo_url }}" alt="{{ $invitation->invitedBy->name }}" class="size-full object-cover">
+                                            @else
+                                                {{ mb_strtoupper(mb_substr($invitation->invitedBy?->name ?? 'U', 0, 1)) }}
+                                            @endif
+                                        </span>
+                                        <p class="truncate text-xs text-black/45">Convidado por {{ $invitation->invitedBy?->name ?? 'Utilizador' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    wire:click="acceptInvitation({{ $invitation->id }})"
+                                    @click="openInvitations = false"
+                                    class="flex-1 rounded-full bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-900"
+                                >
+                                    Aceitar
+                                </button>
+                                <button
+                                    type="button"
+                                    wire:click="declineInvitation({{ $invitation->id }})"
+                                    class="flex-1 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-semibold text-black/65 transition hover:bg-blue-50 hover:text-blue-800 hover:border-blue-200"
+                                >
+                                    Recusar
+                                </button>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="px-4 py-8 text-center">
+                            <p class="text-xs text-black/45">Sem convites pendentes</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
