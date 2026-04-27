@@ -6,6 +6,12 @@ use App\Models\Autor;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * Componente Livewire: AutoresTable
+ *
+ * Gere a tabela de autores, com pesquisa, ordenação e paginação.
+ * Mostra o número de livros associados a cada autor e permite ordenar por nome.
+ */
 class AutoresTable extends Component
 {
     use WithPagination;
@@ -21,6 +27,9 @@ class AutoresTable extends Component
         'sortDirection' => ['except' => 'normal'],
     ];
 
+    /**
+     * Sempre que a pesquisa muda, volta para a página 1.
+     */
     public function updating($name)
     {
         // Sempre que a pesquisa muda, volta para a pagina 1.
@@ -31,6 +40,9 @@ class AutoresTable extends Component
 
     /**
      * Ciclo de ordenacao por nome: asc -> desc -> normal.
+     */
+    /**
+     * Ciclo de ordenação por nome: ascendente, descendente, normal.
      */
     public function sortBy(): void
     {
@@ -46,6 +58,9 @@ class AutoresTable extends Component
         $this->resetPage();
     }
 
+    /**
+     * Define a ordenação por preset (az, za, normal).
+     */
     public function setSortPreset(string $preset): void
     {
         // Presets usados pela sidebar para ordenar nome.
@@ -57,6 +72,9 @@ class AutoresTable extends Component
         $this->resetPage();
     }
 
+    /**
+     * Constrói a query de autores conforme filtros e ordenação.
+     */
     protected function getAutoresQuery()
     {
         $search = trim($this->search);
@@ -77,6 +95,9 @@ class AutoresTable extends Component
         return $query;
     }
 
+    /**
+     * Renderiza a view do componente, passando os dados necessários.
+     */
     public function render()
     {
         // Paginacao final da listagem.

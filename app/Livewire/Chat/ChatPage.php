@@ -73,7 +73,8 @@ class ChatPage extends Component
 
     public function mount(): void
     {
-        $this->selectedConversationId = $this->resolveInitialConversationId();
+        // Não selecionar nenhuma conversa ao entrar na página
+        $this->selectedConversationId = null;
         $this->messageSearchHistory = session()->get($this->messageSearchHistorySessionKey(), []);
 
         $storedNotificationModes = session()->get($this->notificationModeSessionKey(), []);
@@ -93,7 +94,10 @@ class ChatPage extends Component
             ];
         }
 
-        $this->captureUnreadBoundary($this->selectedConversationId);
+        // Só captura unread boundary se houver conversa selecionada
+        if ($this->selectedConversationId !== null) {
+            $this->captureUnreadBoundary($this->selectedConversationId);
+        }
     }
 
     public function applyMessageSearch(): void
@@ -953,6 +957,7 @@ class ChatPage extends Component
 
     public function render()
     {
+        $this->touchOnlinePresence();
         $this->markConversationAsRead($this->selectedConversationId);
 
         $selectedConversationNotificationMode = $this->selectedConversationId
@@ -970,6 +975,38 @@ class ChatPage extends Component
             'browseRooms' => $this->browseRooms,
             'pendingInvitations' => $this->pendingInvitations,
         ]);
+    }
+
+    public function userPresenceStatus(?User $user): string
+    {
+        if (! $user instanceof User) {
+            return 'offline';
+        }
+
+        return Cache::has($this->presenceCacheKey($user->id))
+            ? 'online'
+            : 'offline';
+    }
+
+    public function userPresenceLabel(?User $user): string
+    {
+        return $this->userPresenceStatus($user) === 'online'
+            ? 'Online'
+            : 'Offline';
+    }
+
+    public function userPresenceBadgeClass(?User $user): string
+    {
+        return $this->userPresenceStatus($user) === 'online'
+            ? 'bg-emerald-100 text-emerald-700'
+            : 'bg-slate-100 text-slate-600';
+    }
+
+    public function userPresenceDotClass(?User $user): string
+    {
+        return $this->userPresenceStatus($user) === 'online'
+            ? 'bg-emerald-500'
+            : 'bg-slate-400';
     }
 
     protected function resolveInitialConversationId(): ?int
@@ -1152,6 +1189,22 @@ class ChatPage extends Component
     protected function typingCacheKey(int $conversationId, int $userId): string
     {
         return 'chat.typing.' . $conversationId . '.' . $userId;
+    }
+
+    protected function touchOnlinePresence(): void
+    {
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return;
+        }
+
+        Cache::put($this->presenceCacheKey($user->id), true, now()->addSeconds(20));
+    }
+
+    protected function presenceCacheKey(int $userId): string
+    {
+        return 'chat.presence.' . $userId;
     }
 
     protected function markConversationAsRead(?int $conversationId): void

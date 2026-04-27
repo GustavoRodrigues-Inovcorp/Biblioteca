@@ -8,6 +8,12 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
+/**
+ * Componente Livewire: LivrosTable
+ *
+ * Gere a tabela de livros, com filtros, ordenação, seleção múltipla, exportação e eliminação (admin).
+ * Permite pesquisar, filtrar por preço, exportar para Excel e controlar colunas visíveis.
+ */
 class LivrosTable extends Component
 {
     use WithPagination;
@@ -37,11 +43,17 @@ class LivrosTable extends Component
         'sortDirection' => ['except' => 'normal'],
     ];
 
+    /**
+     * Inicializa o componente, define se é admin.
+     */
     public function mount(bool $isAdmin = false): void
     {
         $this->isAdmin = $isAdmin;
     }
 
+    /**
+     * Sempre que um filtro principal muda, volta para a página 1 e limpa seleção.
+     */
     public function updating($name)
     {
         // Sempre que um filtro principal muda, volta para a pagina 1.
@@ -54,6 +66,9 @@ class LivrosTable extends Component
 
     /**
      * Ciclo de ordenacao por titulo: asc -> desc -> normal.
+     */
+    /**
+     * Ciclo de ordenação por título: ascendente, descendente, normal.
      */
     public function sortBy(): void
     {
@@ -68,6 +83,9 @@ class LivrosTable extends Component
         $this->resetPage();
     }
 
+    /**
+     * Define a ordenação por preset (az, za, normal).
+     */
     public function setSortPreset(string $preset): void
     {
         $this->sortDirection = match ($preset) {
@@ -79,6 +97,9 @@ class LivrosTable extends Component
         $this->resetPage();
     }
 
+    /**
+     * Constrói a query de livros conforme filtros e ordenação.
+     */
     protected function getLivrosQuery()
     {
         $search = trim($this->search);
@@ -107,6 +128,9 @@ class LivrosTable extends Component
         return $query;
     }
 
+    /**
+     * Normaliza o valor do preço (aceita vírgula ou ponto).
+     */
     protected function normalizePrice(string $value): ?float
     {
         $normalized = str_replace(',', '.', trim($value));
@@ -118,6 +142,9 @@ class LivrosTable extends Component
         return (float) $normalized;
     }
 
+    /**
+     * Exporta a lista de livros para Excel.
+     */
     public function exportarExcel()
     {
         return Excel::download(
@@ -131,6 +158,9 @@ class LivrosTable extends Component
         );
     }
 
+    /**
+     * Obtém os IDs dos livros da página atual.
+     */
     protected function getCurrentPageIds(): array
     {
         return $this->getLivrosQuery()
@@ -141,6 +171,9 @@ class LivrosTable extends Component
             ->all();
     }
 
+    /**
+     * Atualiza seleção de todos os livros da página.
+     */
     public function updatedSelectPage(bool $value): void
     {
         if (! $this->isAdmin) {
@@ -167,6 +200,9 @@ class LivrosTable extends Component
         ]));
     }
 
+    /**
+     * Atualiza a lista de livros selecionados.
+     */
     public function updatedSelectedLivros(): void
     {
         $this->selectedLivros = array_values(array_unique(array_map('intval', $this->selectedLivros)));
@@ -179,6 +215,9 @@ class LivrosTable extends Component
         $this->selectPage = $pageIds !== [] && count(array_diff($pageIds, $this->selectedLivros)) === 0;
     }
 
+    /**
+     * Elimina os livros selecionados (apenas admin).
+     */
     public function eliminarSelecionados(): void
     {
         if (! $this->isAdmin || $this->selectedLivros === []) {
@@ -199,6 +238,9 @@ class LivrosTable extends Component
         $this->selectPage = false;
     }
 
+    /**
+     * Renderiza a view do componente, passando os dados necessários.
+     */
     public function render()
     {
         $livros = $this->getLivrosQuery()->paginate(20);

@@ -12,10 +12,19 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * Modelo User
+ *
+ * Representa um utilizador da aplicação Biblioteca.
+ * Inclui métodos para permissões, relações com requisições, encomendas, reviews, alertas, mensagens e conversas de chat.
+ *
+ * Roles possíveis: admin, cidadao.
+ */
 class User extends Authenticatable
 {
     use HasApiTokens;
 
+    // Constantes para os tipos de utilizador
     public const ROLE_ADMIN = 'admin';
     public const ROLE_CIDADAO = 'cidadao';
 
@@ -30,6 +39,7 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
+    // Campos que podem ser preenchidos em massa
     protected $fillable = [
         'name',
         'email',
@@ -53,6 +63,7 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
+    // Campos ocultos quando o modelo é convertido em array ou JSON
     protected $hidden = [
         'password',
         'remember_token',
@@ -65,6 +76,7 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
+    // Atributos adicionais a incluir na serialização
     protected $appends = [
         'profile_photo_url',
     ];
@@ -74,6 +86,7 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
+    // Casts automáticos de tipos para alguns campos
     protected function casts(): array
     {
         return [
@@ -87,6 +100,9 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Evento de criação: só permite criar Admins se já existir um admin autenticado ou se for o primeiro admin via consola.
+     */
     protected static function booted(): void
     {
         static::creating(function (self $user): void {
@@ -111,21 +127,33 @@ class User extends Authenticatable
         });
     }
 
+    /**
+     * Verifica se o utilizador tem um determinado papel (role).
+     */
     public function hasRole(string $role): bool
     {
         return $this->role === $role;
     }
 
+    /**
+     * Verifica se o utilizador é admin.
+     */
     public function isAdmin(): bool
     {
         return $this->hasRole(self::ROLE_ADMIN);
     }
 
+    /**
+     * Verifica se o utilizador é cidadão.
+     */
     public function isCidadao(): bool
     {
         return $this->hasRole(self::ROLE_CIDADAO);
     }
 
+    /**
+     * Relação: um utilizador pode ter várias requisições.
+     */
     public function requisicoes(): HasMany
     {
         return $this->hasMany(Requisicao::class);
@@ -134,31 +162,49 @@ class User extends Authenticatable
     /**
      * Um utilizador pode ter muitos reviews
      */
+    /**
+     * Relação: um utilizador pode ter vários reviews.
+     */
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
 
+    /**
+     * Relação: um utilizador pode ter várias encomendas.
+     */
     public function encomendas(): HasMany
     {
         return $this->hasMany(Encomenda::class);
     }
 
+    /**
+     * Relação: um utilizador pode ter vários alertas de livro.
+     */
     public function alertasLivro()
     {
         return $this->hasMany(\App\Models\AlertaLivro::class);
     }
 
+    /**
+     * Relação: um utilizador pode ter várias mensagens de chat.
+     */
     public function chatMessages(): HasMany
     {
         return $this->hasMany(ChatMessage::class);
     }
 
+    /**
+     * Relação: um utilizador pode ter várias conversas de chat criadas por si.
+     */
     public function chatConversations(): HasMany
     {
         return $this->hasMany(ChatConversation::class, 'created_by_id');
     }
 
+    /**
+     * Relação: conversas em que o utilizador participa (muitos para muitos).
+     */
     public function conversations()
     {
         return $this->belongsToMany(ChatConversation::class, 'chat_conversation_user')

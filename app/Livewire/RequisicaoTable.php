@@ -8,9 +8,16 @@ use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * Componente Livewire: RequisicaoTable
+ *
+ * Gere a tabela de requisições de livros, tanto para admin como para utilizador normal.
+ * Permite aceitar, recusar, pedir devolução, submeter reviews e aplicar filtros.
+ * Mostra popups de confirmação e estatísticas.
+ */
 class RequisicaoTable extends Component
 {
-     // Propriedades para popups e controlo de ações
+    // Propriedades para popups e controlo de ações
     public ?int $requisicaoParaDevolver = null;
     public bool $mostrarPopupDevolucao = false;
     public ?int $requisicaoParaAceitar = null;
@@ -28,12 +35,18 @@ class RequisicaoTable extends Component
     public int $reviewRating = 0;
     public string $reviewComentario = '';
 
+    /**
+     * Inicia o popup para aceitar uma requisição.
+     */
     public function aceitarRequisicao($id)
     {
         $this->requisicaoParaAceitar = $id;
         $this->mostrarPopupAceitar = true;
     }
 
+    /**
+     * Confirma a aceitação da requisição, marca como devolvida e notifica alertas.
+     */
     public function confirmarAceitarRequisicao()
     {
         $id = $this->requisicaoParaAceitar;
@@ -55,12 +68,18 @@ class RequisicaoTable extends Component
         $this->dispatch('notify', message: 'Requisição aceite!');
     }
 
+    /**
+     * Inicia o popup para recusar uma requisição.
+     */
     public function recusarRequisicao($id)
     {
         $this->requisicaoParaRecusar = $id;
         $this->mostrarPopupRecusar = true;
     }
 
+    /**
+     * Confirma a recusa da requisição.
+     */
     public function confirmarRecusarRequisicao()
     {
         $id = $this->requisicaoParaRecusar;
@@ -78,6 +97,9 @@ class RequisicaoTable extends Component
 
     /**
      * Atualiza o array $historico conforme o utilizador (admin ou não)
+     */
+    /**
+     * Atualiza o histórico de requisições conforme o tipo de utilizador e filtros.
      */
     public function atualizarHistorico()
     {
@@ -182,12 +204,18 @@ class RequisicaoTable extends Component
         }
     }
 
+    /**
+     * Inicia o popup para pedir devolução de um livro.
+     */
     public function pedirDevolucao($id)
     {
         $this->requisicaoParaDevolver = $id;
         $this->mostrarPopupDevolucao = true;
     }
 
+    /**
+     * Confirma a devolução do livro (admin ou cidadão).
+     */
     public function confirmarDevolucao()
     {
         $id = $this->requisicaoParaDevolver;
@@ -217,6 +245,9 @@ class RequisicaoTable extends Component
         $this->atualizarHistorico();
     }
 
+    /**
+     * Submete uma review após devolução do livro.
+     */
     public function submeterReview()
     {
         $this->validate([
@@ -281,6 +312,9 @@ class RequisicaoTable extends Component
         'search' => ['except' => ''],
     ];
 
+    /**
+     * Inicializa o componente, define se é admin e carrega o histórico.
+     */
     public function mount(bool $isAdmin = false, ?int $userId = null): void
     {
         $this->isAdmin = $isAdmin;
@@ -288,6 +322,9 @@ class RequisicaoTable extends Component
         $this->atualizarHistorico();
     }
 
+    /**
+     * Reseta a páginação ao atualizar a pesquisa.
+     */
     public function updating($name)
     {
         if ($name === 'search') {
@@ -296,6 +333,9 @@ class RequisicaoTable extends Component
     }
 
     #[Computed]
+    /**
+     * Computed property: lista paginada de requisições conforme filtros.
+     */
     public function requisicoes()
     {
         $search = trim($this->search);
@@ -311,6 +351,9 @@ class RequisicaoTable extends Component
             ->paginate(15);
     }
 
+    /**
+     * Marca uma requisição como devolvida.
+     */
     public function devolver(Requisicao $requisicao): void
     {
         $user = auth()->user();
@@ -331,6 +374,9 @@ class RequisicaoTable extends Component
         $this->dispatch('notify', message: 'Livro devolvido com sucesso.');
     }
 
+    /**
+     * Renderiza a view do componente, carregando dados e estatísticas.
+     */
     public function render()
     {
         $user = auth()->user();
